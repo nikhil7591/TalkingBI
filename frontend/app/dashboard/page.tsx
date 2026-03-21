@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { Menu } from "lucide-react";
 
 import BIChatbot from "@/components/BIChatbot";
 import DashboardPreviewGallery from "@/components/DashboardPreviewGallery";
 import KpiInput from "@/components/KpiInput";
+import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import DisplayCards from "@/components/ui/display-cards";
-import { GradualSpacing } from "@/components/ui/gradual-spacing";
 import UniqueLoading from "@/components/ui/morph-loading";
 import { generateDashboards } from "@/lib/api";
 import { DashboardSpec } from "@/lib/types";
@@ -82,6 +84,25 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [generationStep, setGenerationStep] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [histories, setHistories] = useState<Array<{ id: string; title: string; createdAt: string }>>([]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("talkingbi_chat_histories");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Array<{ id: string; title: string; createdAt: string }>;
+      setHistories(parsed.slice(0, 40));
+    } catch {
+      setHistories([]);
+    }
+  }, []);
+
+  const pushHistory = (entry: { id: string; title: string; createdAt: string }) => {
+    const next = [entry, ...histories].slice(0, 40);
+    setHistories(next);
+    localStorage.setItem("talkingbi_chat_histories", JSON.stringify(next));
+  };
 
   const submitKpi = async (kpi: string, selectedCharts: string[], selectedThemes: string[]) => {
     setCurrentKpi(kpi);
@@ -129,23 +150,69 @@ export default function DashboardPage() {
     <main className="relative mx-auto min-h-screen w-full max-w-[1600px] overflow-hidden p-4 md:p-8">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.20),transparent_40%),radial-gradient(circle_at_80%_20%,rgba(147,51,234,0.18),transparent_38%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.17),transparent_40%),linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)]" />
 
-      <header className="mb-6 rounded-3xl border border-white/60 bg-white/65 p-6 shadow-[0_16px_45px_rgba(15,23,42,0.08)] backdrop-blur-sm">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
-          <div className="space-y-3">
-            <GradualSpacing
-              text="Talking BI"
-              className="text-5xl font-black tracking-tight text-slate-900 md:text-6xl"
-              delayMultiple={0.02}
-            />
-            <p className="max-w-2xl text-slate-700">Build interactive dashboards, listen to insights, and ask personalized BI questions.</p>
-          </div>
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="hidden lg:block">
-            <DisplayCards />
-          </motion.div>
-        </div>
-      </header>
+      <button
+        type="button"
+        onClick={() => setHistoryOpen(true)}
+        className="fixed left-4 top-4 z-50 rounded-xl border border-slate-300 bg-white/90 p-2 shadow-md backdrop-blur"
+      >
+        <Menu className="h-5 w-5 text-slate-800" />
+      </button>
 
-      <KpiInput onSubmit={submitKpi} loading={loading} />
+      {historyOpen && (
+        <div className="fixed inset-0 z-50 bg-black/35" onClick={() => setHistoryOpen(false)}>
+          <aside
+            className="h-full w-full max-w-sm border-r border-slate-200 bg-white p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Chat Histories</h3>
+              <button className="text-sm text-slate-600" onClick={() => setHistoryOpen(false)}>
+                Close
+              </button>
+            </div>
+            <div className="space-y-2 overflow-y-auto">
+              {histories.length === 0 && <p className="text-sm text-slate-500">No chat history yet.</p>}
+              {histories.map((h) => (
+                <div key={h.id} className="rounded-xl border border-slate-200 p-3">
+                  <p className="text-sm font-semibold text-slate-900">{h.title}</p>
+                  <p className="text-xs text-slate-500">{new Date(h.createdAt).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <ContainerScroll
+        titleComponent={
+          <>
+            <h1 className="text-4xl font-semibold text-black">
+              Unleash the power of <br />
+              <span className="mt-1 text-4xl font-bold leading-none md:text-[5.2rem]">Talking BI</span>
+            </h1>
+          </>
+        }
+      >
+        <video
+          className="h-full w-full rounded-2xl object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+          controls={false}
+        >
+          <source src="/tab-video.mp4" type="video/mp4" />
+        </video>
+      </ContainerScroll>
+
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div>
+          <KpiInput onSubmit={submitKpi} loading={loading} />
+        </div>
+        <div className="hidden items-start justify-center lg:flex">
+          <DisplayCards />
+        </div>
+      </section>
 
       {error && (
         <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">{error}</div>
@@ -159,11 +226,19 @@ export default function DashboardPage() {
 
       {!loading && dashboards.length > 0 && (
         <section className="mt-6">
-          <BIChatbot kpi={currentKpi} dashboardContext={chatbotContext} />
+          <BIChatbot
+            kpi={currentKpi}
+            dashboardContext={chatbotContext}
+            onHistoryEntry={(entry) => pushHistory({ id: entry.id, title: entry.title, createdAt: entry.createdAt })}
+          />
         </section>
       )}
 
       {loading && <GenerationOverlay step={generationStep} />}
+
+      <div className="mt-8 text-center text-xs text-slate-500">
+        Need premium charts and account setup? <Link href="/plans" className="font-semibold text-blue-700 underline">Try plans</Link>
+      </div>
     </main>
   );
 }

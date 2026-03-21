@@ -14,9 +14,10 @@ type Message = {
 type Props = {
   kpi: string;
   dashboardContext: DashboardSpec | null;
+  onHistoryEntry?: (entry: { id: string; title: string; createdAt: string; messages: Message[] }) => void;
 };
 
-export default function BIChatbot({ kpi, dashboardContext }: Props) {
+export default function BIChatbot({ kpi, dashboardContext, onHistoryEntry }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -48,6 +49,21 @@ export default function BIChatbot({ kpi, dashboardContext }: Props) {
           content: response.answer || "I could not derive an answer from the current dashboard context.",
         },
       ]);
+
+      const fullMessages: Message[] = [
+        ...messages,
+        { role: "user", content: message },
+        {
+          role: "assistant",
+          content: response.answer || "I could not derive an answer from the current dashboard context.",
+        },
+      ];
+      onHistoryEntry?.({
+        id: `${Date.now()}`,
+        title: `${kpi} - ${message.slice(0, 40)}`,
+        createdAt: new Date().toISOString(),
+        messages: fullMessages,
+      });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Could not reach BI chatbot.";
       setMessages((prev) => [...prev, { role: "assistant", content: msg }]);

@@ -4,25 +4,16 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 
 import { RainbowButton } from "@/components/ui/rainbow-button";
+import { Card } from "@/components/ui/card";
 import { SplineScene } from "@/components/ui/splite";
 import { Spotlight } from "@/components/ui/spotlight";
 
 export default function HomePage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-white">
-      <div className="absolute inset-0">
-        <div className="absolute right-0 top-0 h-full w-full lg:w-[64%]">
-          <Spotlight className="z-20" size={520} />
-          <SplineScene
-            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-            className="h-full w-full"
-          />
-        </div>
-      </div>
+    <main className="relative min-h-screen overflow-hidden bg-white px-4 py-4 md:px-8 md:py-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(15,23,42,0.09),transparent_45%),radial-gradient(circle_at_80%_82%,rgba(15,23,42,0.07),transparent_45%)]" />
 
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.90)_38%,rgba(255,255,255,0.18)_70%,transparent_100%)]" />
-
-      <section className="relative z-30 mx-auto grid min-h-screen w-full max-w-[1700px] gap-6 px-4 py-8 md:px-8 lg:grid-cols-[0.92fr_1.08fr]">
+      <section className="relative mx-auto grid h-[calc(100vh-2rem)] w-full max-w-[1700px] gap-6 lg:grid-cols-[0.95fr_1.25fr]">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -62,8 +53,18 @@ export default function HomePage() {
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
-          className="hidden h-full min-h-[420px] lg:block"
-        />
+          className="min-h-[420px] h-full"
+        >
+          <Card className="relative h-full w-full overflow-hidden rounded-[32px] border border-slate-300 bg-white shadow-[0_36px_90px_rgba(15,23,42,0.16)]">
+            <Spotlight className="z-10" size={420} />
+            <div className="relative z-20 h-full w-full">
+              <SplineScene
+                scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+                className="h-full w-full"
+              />
+            </div>
+          </Card>
+        </motion.div>
       </section>
     </main>
   );

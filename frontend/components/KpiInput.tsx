@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import { AVAILABLE_THEMES, DEFAULT_THEME, THEME_KEYS } from "@/lib/themes";
 import { AIVoiceInput } from "@/components/ui/ai-voice-input";
@@ -39,6 +40,24 @@ const CHART_OPTIONS = [
 ];
 
 const DEFAULT_SELECTED = ["line", "bar", "area", "donut", "combo", "gauge"];
+
+const PAID_CHARTS = new Set([
+  "sankey",
+  "sunburst",
+  "nightingale",
+  "pictorial-bar",
+  "polar-bar",
+  "radial-bar",
+  "rose",
+  "waterfall",
+  "heatmap",
+  "treemap",
+  "bubble",
+  "combo",
+  "step-line",
+  "funnel",
+  "gauge",
+]);
 
 function prettyName(type: string): string {
   return type
@@ -150,6 +169,8 @@ export default function KpiInput({ onSubmit, loading }: Props) {
   const recognitionRef = useRef<{
     stop: () => void;
   } | null>(null);
+  const [showPaidPopup, setShowPaidPopup] = useState(false);
+  const [voiceUiResetKey, setVoiceUiResetKey] = useState(0);
 
   const dots = useMemo(() => ".".repeat(dotCount), [dotCount]);
 
@@ -158,6 +179,8 @@ export default function KpiInput({ onSubmit, loading }: Props) {
       setDotCount(0);
       return;
     }
+    stopVoiceCapture();
+    setVoiceUiResetKey((prev) => prev + 1);
     const timer = setInterval(() => {
       setDotCount((prev: number) => (prev + 1) % 4);
     }, 500);
@@ -206,10 +229,16 @@ export default function KpiInput({ onSubmit, loading }: Props) {
     if (!value.trim() || loading || selectedCharts.length === 0) {
       return;
     }
+    stopVoiceCapture();
+    setVoiceUiResetKey((prev) => prev + 1);
     onSubmit(value.trim(), selectedCharts, selectedThemes);
   };
 
   const toggleChart = (type: string) => {
+    if (PAID_CHARTS.has(type)) {
+      setShowPaidPopup(true);
+      return;
+    }
     setSelectedCharts((prev) => {
       if (prev.includes(type)) {
         return prev.filter((item) => item !== type);
@@ -220,7 +249,7 @@ export default function KpiInput({ onSubmit, loading }: Props) {
 
   const quickSelect = (mode: "all" | "clear") => {
     if (mode === "all") {
-      setSelectedCharts(CHART_OPTIONS);
+      setSelectedCharts(CHART_OPTIONS.filter((chart) => !PAID_CHARTS.has(chart)));
       return;
     }
     setSelectedCharts([]);
@@ -252,6 +281,7 @@ export default function KpiInput({ onSubmit, loading }: Props) {
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2">
           <AIVoiceInput
+            key={voiceUiResetKey}
             onStart={startVoiceCapture}
             onStop={() => stopVoiceCapture()}
             visualizerBars={36}
@@ -295,17 +325,23 @@ export default function KpiInput({ onSubmit, loading }: Props) {
           <div className="grid max-h-80 grid-cols-2 gap-2 overflow-auto pr-1 md:grid-cols-4 lg:grid-cols-5">
             {CHART_OPTIONS.map((type) => {
               const active = selectedCharts.includes(type);
+              const isPaid = PAID_CHARTS.has(type);
               return (
                 <button
                   key={type}
                   type="button"
                   onClick={() => toggleChart(type)}
-                  className="rounded-lg border p-2 text-left transition"
+                  className="relative rounded-lg border p-2 text-left transition"
                   style={{
                     borderColor: active ? "#0f172a" : "#cbd5e1",
                     background: active ? "#f8fafc" : "#ffffff",
                   }}
                 >
+                  {isPaid && (
+                    <span className="absolute right-1 top-1 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                      PAID
+                    </span>
+                  )}
                   <div className="mb-2 h-10 rounded-md bg-gradient-to-br from-slate-100 to-slate-200 p-1">
                     <div className="h-full w-full rounded bg-white px-1 py-0.5">
                       {chartThumbnail(type)}
@@ -366,6 +402,33 @@ export default function KpiInput({ onSubmit, loading }: Props) {
           </div>
         </div>
       </div>
+
+      {showPaidPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900">Access all charts</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              This chart type is available in paid plans. Upgrade to unlock premium visuals.
+            </p>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPaidPopup(false)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+              >
+                Close
+              </button>
+              <Link
+                href="/plans"
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => setShowPaidPopup(false)}
+              >
+                Try Plans
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
