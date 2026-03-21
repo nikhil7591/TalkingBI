@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pandas
+numpy
+openai
+pydantic
+python-multipart
+httpx
+groq

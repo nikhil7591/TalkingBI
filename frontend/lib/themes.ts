@@ -1,0 +1,139 @@
+export interface ThemeConfig {
+  name: string;
+  background: string;
+  cardBackground: string;
+  primaryColor: string;
+  accentColor: string;
+  textColor: string;
+  subTextColor: string;
+  mutedColor: string;
+  borderRadius: number;
+  cardShadow: string;
+  borderColor: string;
+  chartColors: string[];
+  headingColor: string;
+  subheadingColor: string;
+}
+
+export const AVAILABLE_THEMES: Record<string, ThemeConfig> = {
+  "dark-professional": {
+    name: "Dark Professional",
+    background: "#1a1a2e",
+    cardBackground: "#16213e",
+    primaryColor: "#0f3460",
+    accentColor: "#533483",
+    textColor: "#e0e0e0",
+    subTextColor: "#a0a0a0",
+    mutedColor: "#707070",
+    borderRadius: 8,
+    cardShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+    borderColor: "#2d3561",
+    chartColors: ["#00d4ff", "#0096ff", "#ff006e", "#8338ec", "#ffbe0b"],
+    headingColor: "#ffffff",
+    subheadingColor: "#b0b0b0",
+  },
+  "light-minimal": {
+    name: "Light Minimal",
+    background: "#f8f9fa",
+    cardBackground: "#ffffff",
+    primaryColor: "#e9ecef",
+    accentColor: "#dee2e6",
+    textColor: "#212529",
+    subTextColor: "#6c757d",
+    mutedColor: "#9ca3af",
+    borderRadius: 8,
+    cardShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+    borderColor: "#dee2e6",
+    chartColors: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"],
+    headingColor: "#111827",
+    subheadingColor: "#4b5563",
+  },
+  "vibrant-sunset": {
+    name: "Vibrant Sunset",
+    background: "#fef5e7",
+    cardBackground: "#fff9e6",
+    primaryColor: "#f8c471",
+    accentColor: "#f5b041",
+    textColor: "#5d4e37",
+    subTextColor: "#7d6c5d",
+    mutedColor: "#9b8b7e",
+    borderRadius: 8,
+    cardShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+    borderColor: "#f9d9b8",
+    chartColors: ["#ff6b6b", "#ffa500", "#ffd700", "#ff69b4", "#ff1493"],
+    headingColor: "#8b4513",
+    subheadingColor: "#a0522d",
+  },
+  "ocean-blue": {
+    name: "Ocean Blue",
+    background: "#0a1628",
+    cardBackground: "#132f4c",
+    primaryColor: "#1f5a96",
+    accentColor: "#2a9df4",
+    textColor: "#d0e8f2",
+    subTextColor: "#90cdf4",
+    mutedColor: "#4fd1c5",
+    borderRadius: 8,
+    cardShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+    borderColor: "#1f5a96",
+    chartColors: ["#00d4ff", "#0096ff", "#1e90ff", "#4169e1", "#87ceeb"],
+    headingColor: "#ffffff",
+    subheadingColor: "#b0e0e6",
+  },
+  "forest-green": {
+    name: "Forest Green",
+    background: "#1a3a2e",
+    cardBackground: "#0f2818",
+    primaryColor: "#2d6a4f",
+    accentColor: "#40916c",
+    textColor: "#d8f3dc",
+    subTextColor: "#95d5b2",
+    mutedColor: "#52b788",
+    borderRadius: 8,
+    cardShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+    borderColor: "#2d6a4f",
+    chartColors: ["#22c55e", "#16a34a", "#15803d", "#84cc16", "#b4e197"],
+    headingColor: "#f0fdf4",
+    subheadingColor: "#bbf7d0",
+  },
+  "purple-gradient": {
+    name: "Purple Gradient",
+    background: "#2d1b69",
+    cardBackground: "#3d2a7a",
+    primaryColor: "#5b3d9b",
+    accentColor: "#6d4bd1",
+    textColor: "#e6d9f5",
+    subTextColor: "#c8b1e1",
+    mutedColor: "#a57dcc",
+    borderRadius: 8,
+    cardShadow: "0 4px 12px rgba(123, 31, 162, 0.2)",
+    borderColor: "#5b3d9b",
+    chartColors: ["#a855f7", "#9333ea", "#7c3aed", "#6d28d9", "#c4b5fd"],
+    headingColor: "#f3e8ff",
+    subheadingColor: "#ddd6fe",
+  },
+  "corporate-slate": {
+    name: "Corporate Slate",
+    background: "#1e293b",
+    cardBackground: "#334155",
+    primaryColor: "#475569",
+    accentColor: "#64748b",
+    textColor: "#f1f5f9",
+    subTextColor: "#cbd5e1",
+    mutedColor: "#94a3b8",
+    borderRadius: 8,
+    cardShadow: "0 4px 12px rgba(0, 0, 0, 0.35)",
+    borderColor: "#475569",
+    chartColors: ["#0ea5e9", "#06b6d4", "#14b8a6", "#10b981", "#34d399"],
+    headingColor: "#f8fafc",
+    subheadingColor: "#e2e8f0",
+  },
+};
+
+export const DEFAULT_THEME: ThemeConfig = AVAILABLE_THEMES["dark-professional"];
+
+export const THEME_KEYS = Object.keys(AVAILABLE_THEMES);
+
+export function getThemeByName(name: string): ThemeConfig {
+  return AVAILABLE_THEMES[name] || DEFAULT_THEME;
+}
