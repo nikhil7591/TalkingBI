@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.services.ai_service import ai_service
+from app.services.bi_chat_service import bi_chat_service
 from app.services.data_service import data_service
 from app.services.voice_service import voice_service
 
@@ -21,6 +22,13 @@ class DashboardRequest(BaseModel):
 class VoiceExplanationRequest(BaseModel):
     dashboardSpec: dict[str, Any] = Field(...)
     kpi: str = Field(..., min_length=2)
+
+
+class BiChatRequest(BaseModel):
+    question: str = Field(..., min_length=2)
+    kpi: str = Field(..., min_length=2)
+    dashboardSpec: dict[str, Any] = Field(...)
+    userName: str | None = Field(default=None)
 
 @router.get("/health")
 def health() -> dict[str, str]:
@@ -49,3 +57,13 @@ def generate_dashboard(payload: DashboardRequest) -> dict:
 def generate_voice_explanation(payload: VoiceExplanationRequest) -> dict[str, Any]:
     """Generate voice explanation and transcript for a dashboard."""
     return voice_service.get_voice_explanation(payload.dashboardSpec, payload.kpi)
+
+
+@router.post("/bi-chat")
+def bi_chat(payload: BiChatRequest) -> dict[str, Any]:
+    return bi_chat_service.answer(
+        question=payload.question,
+        kpi=payload.kpi,
+        dashboard_spec=payload.dashboardSpec,
+        user_name=payload.userName,
+    )

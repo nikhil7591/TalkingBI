@@ -626,15 +626,10 @@ class AiService:
 
     def _build_client(self) -> tuple[OpenAI | None, str | None]:
         openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-        groq_key = os.getenv("GROQ_API_KEY", "").strip()
 
         if openai_key:
-            model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+            model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini-2026-03-17")
             return OpenAI(api_key=openai_key), model
-
-        if groq_key:
-            model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-            return OpenAI(api_key=groq_key, base_url="https://api.groq.com/openai/v1"), model
 
         return None, None
 
@@ -766,12 +761,81 @@ class AiService:
 
         return spec
 
+    def _enhance_dashboard_variants(self, spec: dict[str, Any], kpi: str) -> dict[str, Any]:
+        """Apply KPI-aware enhancements so generated dashboards feel more advanced and less repetitive."""
+        dashboards = spec.get("dashboards", [])
+        if not dashboards:
+            return spec
+
+        kpi_lower = kpi.lower()
+        finance_keywords = {"sales", "revenue", "profit", "margin", "cost"}
+        ops_keywords = {"delivery", "shipment", "lead", "time", "throughput"}
+        customer_keywords = {"customer", "segment", "retention", "churn", "satisfaction"}
+
+        if any(word in kpi_lower for word in finance_keywords):
+            palette = ["#2563EB", "#0EA5E9", "#06B6D4", "#8B5CF6", "#F59E0B"]
+            hero_suffix = "Financial Intelligence"
+        elif any(word in kpi_lower for word in ops_keywords):
+            palette = ["#0891B2", "#0F766E", "#22C55E", "#F59E0B", "#EF4444"]
+            hero_suffix = "Operational Flow"
+        elif any(word in kpi_lower for word in customer_keywords):
+            palette = ["#9333EA", "#3B82F6", "#EC4899", "#14B8A6", "#F97316"]
+            hero_suffix = "Customer Pulse"
+        else:
+            palette = ["#2563EB", "#7C3AED", "#06B6D4", "#F43F5E", "#F59E0B"]
+            hero_suffix = "Executive Lens"
+
+        advanced_chart_mix = [
+            "combo",
+            "heatmap",
+            "treemap",
+            "sankey",
+            "waterfall",
+            "radial-bar",
+            "nightingale",
+            "sunburst",
+            "bubble",
+        ]
+
+        for dash_idx, dashboard in enumerate(dashboards):
+            dashboard["title"] = f"{dashboard.get('title', 'Dashboard')} - {hero_suffix}"
+            theme = dashboard.get("theme", {})
+            if isinstance(theme, dict):
+                theme["chartColors"] = palette
+                theme["accentColor"] = palette[(dash_idx + 1) % len(palette)]
+                theme["primaryColor"] = palette[dash_idx % len(palette)]
+                dashboard["theme"] = theme
+
+            charts = dashboard.get("charts", [])
+            if not isinstance(charts, list):
+                continue
+
+            for chart_idx, chart in enumerate(charts):
+                if not isinstance(chart, dict):
+                    continue
+                if not chart.get("colors"):
+                    chart["colors"] = palette
+
+                # Upgrade every second chart to advanced type mix unless explicitly constrained.
+                if chart_idx % 2 == 1:
+                    chart["type"] = advanced_chart_mix[(dash_idx + chart_idx) % len(advanced_chart_mix)]
+
+                subtitle = str(chart.get("subtitle") or "").strip()
+                if subtitle:
+                    chart["subtitle"] = f"{subtitle} | KPI signal focus"
+                else:
+                    chart["subtitle"] = "KPI signal focus"
+
+        spec["dashboards"] = dashboards
+        return spec
+
     def generate_dashboard_spec(self, kpi: str, aggregated_payload: dict[str, Any], selected_charts: list[str] | None = None, selected_themes: list[str] | None = None) -> dict[str, Any]:
         """Generate 4 unique, professional dashboards with different focuses."""
         rows = aggregated_payload.get("rows", [])
 
         # Use local generator for consistent, diverse results
         spec = UniqueChartGenerator.generate_dashboard_spec_with_unique_focuses(kpi, rows)
+        spec = self._enhance_dashboard_variants(spec, kpi)
         spec = self._apply_selected_chart_types(spec, selected_charts or [])
         spec = self._apply_themes_to_dashboards(spec, selected_themes or [])
 

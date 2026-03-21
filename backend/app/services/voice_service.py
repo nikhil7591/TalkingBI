@@ -6,8 +6,6 @@ import base64
 import os
 from typing import Any
 
-from openai import OpenAI
-
 try:
     from groq import Groq
 except ImportError:  # Keep backend booting if groq isn't installed in active env.
@@ -18,15 +16,8 @@ class VoiceService:
     """Generate explanations and audio for dashboards."""
 
     def __init__(self) -> None:
-        self.openai_key = os.getenv("OPENAI_API_KEY", "").strip()
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
         self.groq_key = os.getenv("GROQ_API_KEY", "").strip()
         self.groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
-        if self.openai_key:
-            self.openai_client = OpenAI(api_key=self.openai_key)
-        else:
-            self.openai_client = None
 
         if self.groq_key and Groq is not None:
             self.groq_client = Groq(api_key=self.groq_key)
@@ -201,22 +192,8 @@ Return plain text only."""
             )
 
     def _generate_with_llm(self, prompt: str) -> str | None:
-        """Try to generate explanation using OpenAI or Groq."""
-        # Try OpenAI first
-        if self.openai_client:
-            try:
-                response = self.openai_client.chat.completions.create(
-                    model=self.openai_model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.4,
-                    max_tokens=700,
-                )
-                if response.choices and response.choices[0].message.content:
-                    return response.choices[0].message.content.strip()
-            except Exception as e:
-                print(f"OpenAI error: {e}")
-
-        # Try Groq as fallback
+        """Generate explanation using Groq only for voice flow."""
+        # Voice flow uses Groq as primary model.
         if self.groq_client:
             try:
                 response = self.groq_client.chat.completions.create(
@@ -359,23 +336,6 @@ Source script:
             ]
         )
 
-    def generate_audio_openai(self, text: str) -> bytes | None:
-        """Generate audio using OpenAI TTS."""
-        if not self.openai_client:
-            return None
-
-        try:
-            response = self.openai_client.audio.speech.create(
-                model="tts-1",
-                voice="nova",  # Professional, neutral voice
-                input=text,
-                speed=1.0,
-            )
-            return response.content
-        except Exception as e:
-            print(f"OpenAI TTS error: {e}")
-            return None
-
     def generate_audio_groq(self, text: str) -> bytes | None:
         """Generate audio using Groq API (via external service)."""
         # Note: Groq doesn't have direct TTS. We'll use an alternative approach.
@@ -383,19 +343,8 @@ Source script:
         return None
 
     def generate_audio(self, text: str) -> bytes | None:
-        """Generate audio with OpenAI primary, Groq fallback."""
-        # Try OpenAI first
-        audio = self.generate_audio_openai(text)
-        if audio:
-            return audio
-
-        # Try Groq (if supported in future)
-        audio = self.generate_audio_groq(text)
-        if audio:
-            return audio
-
-        # If all fail, return None - frontend will use Web Speech API
-        return None
+        """Generate audio for voice mode (currently frontend Web Speech fallback)."""
+        return self.generate_audio_groq(text)
 
     def get_voice_explanation(self, dashboard_spec: dict[str, Any], kpi: str) -> dict[str, Any]:
         """Generate complete voice explanation with audio."""

@@ -1,137 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
 
-import DashboardPreviewGallery from "@/components/DashboardPreviewGallery";
-import KpiInput from "@/components/KpiInput";
-import { generateDashboards } from "@/lib/api";
-import { DashboardSpec } from "@/lib/types";
-
-const DASHBOARD_NAMES = [
-  "Trend Analysis & Performance",
-  "Comparative Analysis",
-  "Deep Dive Analysis",
-  "Performance Metrics",
-];
-
-const MIN_LOADING_MS = 65000;
-
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        {[1, 2, 3, 4].map((n) => (
-          <div key={n} className="h-28 animate-pulse rounded-xl bg-slate-300/60" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {[1, 2, 3].map((n) => (
-          <div key={n} className="h-64 animate-pulse rounded-xl bg-slate-300/50" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function GenerationOverlay({ step }: { step: number }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-      <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl">
-        <div className="mb-5 flex items-center gap-4">
-          <div className="h-14 w-14 animate-spin rounded-full border-4 border-slate-600 border-t-cyan-400" />
-          <div>
-            <h3 className="text-lg font-bold">Generating Dashboards...</h3>
-            <p className="text-sm text-slate-300">Please wait while all 4 dashboards are being prepared.</p>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {DASHBOARD_NAMES.map((name, idx) => {
-            const active = idx === step;
-            const done = idx < step;
-            return (
-              <div
-                key={name}
-                className="flex items-center justify-between rounded-lg border px-3 py-2"
-                style={{
-                  borderColor: active ? "#22d3ee" : "#334155",
-                  background: active ? "rgba(34,211,238,0.14)" : "rgba(15,23,42,0.75)",
-                }}
-              >
-                <span className="text-sm font-semibold">{name}</span>
-                <span className="text-xs font-bold" style={{ color: done ? "#22c55e" : active ? "#22d3ee" : "#94a3b8" }}>
-                  {done ? "Done" : active ? "Generating..." : "Pending"}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <p className="mt-4 text-xs text-slate-400">Estimated time: 60-70 seconds</p>
-      </div>
-    </div>
-  );
-}
+import { RainbowButton } from "@/components/ui/rainbow-button";
+import { SplineScene } from "@/components/ui/splite";
+import { Spotlight } from "@/components/ui/spotlight";
 
 export default function HomePage() {
-  const [dashboards, setDashboards] = useState<DashboardSpec[]>([]);
-  const [currentKpi, setCurrentKpi] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>("");
-  const [generationStep, setGenerationStep] = useState(0);
-
-  const submitKpi = async (kpi: string, selectedCharts: string[], selectedThemes: string[]) => {
-    setCurrentKpi(kpi);
-    setLoading(true);
-    setGenerationStep(0);
-    setError("");
-    const stepInterval = setInterval(() => {
-      setGenerationStep((prev) => (prev < 3 ? prev + 1 : prev));
-    }, 16000);
-
-    try {
-      const delayed = new Promise((resolve) => setTimeout(resolve, MIN_LOADING_MS));
-      const apiResultPromise = generateDashboards(kpi, selectedCharts, selectedThemes)
-        .then((data) => ({ ok: true as const, data }))
-        .catch((err: unknown) => ({ ok: false as const, err }));
-
-      const [apiResult] = await Promise.all([apiResultPromise, delayed]);
-
-      if (!apiResult.ok) {
-        throw apiResult.err;
-      }
-
-      setGenerationStep(3);
-      setDashboards(apiResult.data);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Something went wrong. Please try again.";
-      setError(msg);
-    } finally {
-      clearInterval(stepInterval);
-      setLoading(false);
-    }
-  };
-
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[1400px] p-4 md:p-8">
-      <header className="mb-6">
-        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">Talking BI</h1>
-        <p className="mt-1 text-slate-600">Speak a KPI and generate 4 PowerBI-style dashboards instantly.</p>
-      </header>
+    <main className="relative min-h-screen overflow-hidden bg-white">
+      <div className="absolute inset-0">
+        <div className="absolute right-0 top-0 h-full w-full lg:w-[64%]">
+          <Spotlight className="z-20" size={520} />
+          <SplineScene
+            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+            className="h-full w-full"
+          />
+        </div>
+      </div>
 
-      <KpiInput onSubmit={submitKpi} loading={loading} />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.98)_0%,rgba(255,255,255,0.90)_38%,rgba(255,255,255,0.18)_70%,transparent_100%)]" />
 
-      {error && (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">{error}</div>
-      )}
+      <section className="relative z-30 mx-auto grid min-h-screen w-full max-w-[1700px] gap-6 px-4 py-8 md:px-8 lg:grid-cols-[0.92fr_1.08fr]">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="flex min-h-[36vh] flex-col justify-center px-2 md:px-6"
+        >
+          <p className="mb-4 inline-flex w-fit rounded-full border border-slate-300 bg-white px-4 py-1 text-xs font-bold uppercase tracking-[0.26em] text-slate-700">
+            AI Dashboard Copilot
+          </p>
 
-      <section className="mt-6 space-y-4">
-        {loading && <LoadingSkeleton />}
+          <h1 className="text-5xl font-black leading-[0.92] tracking-tight text-slate-950 md:text-7xl lg:text-8xl">
+            Talking BI
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg font-medium text-slate-700 md:text-2xl">
+            Build Interactive Dashboards with just KPI queries
+          </p>
 
-        {!loading && dashboards.length > 0 && <DashboardPreviewGallery dashboards={dashboards} kpi={currentKpi} />}
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <Link href="/dashboard">
+              <RainbowButton className="h-14 min-w-[240px] text-lg tracking-wide">START FOR FREE</RainbowButton>
+            </Link>
+            <Link href="/plans">
+              <RainbowButton className="h-14 min-w-[200px] text-lg tracking-wide">TRY PLANS</RainbowButton>
+            </Link>
+          </div>
+
+          <div className="mt-8 max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <img
+              src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80"
+              alt="Business analytics dashboard mood board"
+              className="h-40 w-full object-cover"
+            />
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
+          className="hidden h-full min-h-[420px] lg:block"
+        />
       </section>
-
-      {loading && <GenerationOverlay step={generationStep} />}
     </main>
   );
 }

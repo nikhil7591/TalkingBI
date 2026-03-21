@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { AVAILABLE_THEMES, DEFAULT_THEME, THEME_KEYS } from "@/lib/themes";
+import { AIVoiceInput } from "@/components/ui/ai-voice-input";
 
 type Props = {
   onSubmit: (kpi: string, selectedCharts: string[], selectedThemes: string[]) => void;
@@ -116,6 +117,7 @@ declare global {
         onerror: (() => void) | null;
         onresult: ((event: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
         start: () => void;
+        stop: () => void;
       };
     };
     SpeechRecognition?: {
@@ -128,6 +130,7 @@ declare global {
         onerror: (() => void) | null;
         onresult: ((event: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
         start: () => void;
+        stop: () => void;
       };
     };
   }
@@ -144,6 +147,9 @@ export default function KpiInput({ onSubmit, loading }: Props) {
     DEFAULT_THEME.name,
     DEFAULT_THEME.name,
   ]);
+  const recognitionRef = useRef<{
+    stop: () => void;
+  } | null>(null);
 
   const dots = useMemo(() => ".".repeat(dotCount), [dotCount]);
 
@@ -158,7 +164,7 @@ export default function KpiInput({ onSubmit, loading }: Props) {
     return () => clearInterval(timer);
   }, [loading]);
 
-  const handleVoice = () => {
+  const startVoiceCapture = () => {
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Rec) {
       alert("Speech recognition is not supported in this browser.");
@@ -181,7 +187,18 @@ export default function KpiInput({ onSubmit, loading }: Props) {
       setValue(transcript.trim());
     };
 
+    recognitionRef.current = {
+      stop: () => recognition.stop(),
+    };
     recognition.start();
+  };
+
+  const stopVoiceCapture = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setListening(false);
   };
 
   const submit = (e: FormEvent) => {
@@ -210,38 +227,45 @@ export default function KpiInput({ onSubmit, loading }: Props) {
   };
 
   return (
-    <form onSubmit={submit} className="w-full rounded-2xl bg-white p-4 shadow-sm">
-      <div className="flex w-full flex-col gap-3 md:flex-row md:items-start">
-        <textarea
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Ask KPI like: Monthly Revenue by Region"
-          rows={2}
-          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-base outline-none transition focus:border-slate-500 md:min-h-[88px]"
-        />
-        <button
-          type="button"
-          onClick={handleVoice}
-          className={`rounded-xl px-4 py-3 font-semibold transition ${
-            listening ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-700"
-          }`}
-        >
-          {listening ? "Listening..." : "Mic"}
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Generate Dashboards
-        </button>
+    <form onSubmit={submit} className="w-full rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-[0_16px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm md:p-6">
+      <div className="grid gap-4 md:grid-cols-[1.2fr_320px]">
+        <div className="space-y-3">
+          <textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Ask KPI like: Monthly Revenue by Region"
+            rows={3}
+            className="w-full rounded-2xl border border-slate-300/80 bg-white px-4 py-3 text-base outline-none transition focus:border-slate-500 md:min-h-[96px]"
+          />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-2xl bg-slate-900 px-6 py-3 font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Generate Dashboards
+            </button>
+            <span className="text-sm text-slate-500">Tip: speak naturally, then fine-tune text before submit.</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2">
+          <AIVoiceInput
+            onStart={startVoiceCapture}
+            onStop={() => stopVoiceCapture()}
+            visualizerBars={36}
+          />
+          <p className="pb-2 text-center text-xs text-slate-600">
+            {listening ? "Recognizing voice in real-time..." : "Use mic to fill KPI prompt"}
+          </p>
+        </div>
       </div>
       {loading && (
         <p className="mt-3 text-sm text-slate-600">
           Analyzing data{dots} <span className="animate-pulse">Please wait</span>
         </p>
       )}
-      {listening && <p className="mt-1 text-sm text-emerald-600">Recognizing speech in real-time...</p>}
 
       <div className="mt-4 grid grid-cols-5 gap-4">
         {/* Chart Selector - 60% */}

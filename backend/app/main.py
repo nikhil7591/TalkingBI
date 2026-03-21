@@ -6,10 +6,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+load_dotenv()
+
 from app.routers.dashboard import router as dashboard_router
 from app.services.data_service import data_service
-
-load_dotenv()
 
 app = FastAPI(title="Talking BI Dashboard Generator", version="1.0.0")
 

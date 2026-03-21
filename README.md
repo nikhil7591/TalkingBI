@@ -17,10 +17,9 @@ npm run dev
 ## Open Application
 Open http://localhost:3000
 
-## API Key Fallback Behavior
-This project supports OpenAI and Groq fallback in backend/app/services/ai_service.py.
+## Model Routing Behavior
+Current routing is intentionally split by feature:
 
-Priority order:
-1. If OPENAI_API_KEY is set, it uses OPENAI_MODEL.
-2. Else if GROQ_API_KEY is set, it uses GROQ_MODEL via Groq OpenAI-compatible endpoint.
-3. If neither is present, it still runs using a local fallback dashboard generator.
+1. Dashboard generation and BI chatbot use OpenAI only (`OPENAI_MODEL`, default `gpt-5.4-mini-2026-03-17`).
+2. Voice explanation text generation uses Groq first (`GROQ_MODEL`) with OpenAI fallback for resilience.
+3. Dashboard spec generation still works from local data logic even if model keys are missing.

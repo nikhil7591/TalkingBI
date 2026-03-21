@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Talking BI",
-  description: "AI Dashboard Generator",
+  description: "Build interactive dashboards with KPI queries and personalized BI chatbot.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

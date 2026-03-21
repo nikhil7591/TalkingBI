@@ -69,3 +69,26 @@ export async function generateVoiceExplanation(
     };
   }
 }
+
+export async function askBiChat(payload: {
+  question: string;
+  kpi: string;
+  dashboardSpec: DashboardSpec;
+  userName?: string;
+}): Promise<{ answer: string; sources: string[] }> {
+  try {
+    const response = await axios.post(`${API_URL}/bi-chat`, payload, { timeout: 30000 });
+    return {
+      answer: response.data?.answer || "",
+      sources: response.data?.sources || [],
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message =
+        (error.response?.data as { detail?: string } | undefined)?.detail ||
+        "Unable to answer BI question right now.";
+      throw new Error(message);
+    }
+    throw new Error("Unexpected error while asking BI chatbot.");
+  }
+}
