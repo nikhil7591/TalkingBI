@@ -66,3 +66,28 @@ export interface ApiResponse {
     meta?: Record<string, unknown>;
   };
 }
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  createdAt?: string;
+}
+
+export interface ChatConversationSummary {
+  id: string;
+  title: string;
+  kpi?: string | null;
+  dashboards?: string[];
+  createdAt: string;
+  updatedAt?: string;
+  preview: string;
+}
+
+export interface ChatConversationDetail {
+  id: string;
+  title: string;
+  kpi?: string | null;
+  dashboards?: string[];
+  createdAt: string;
+  messages: ChatMessage[];
+}

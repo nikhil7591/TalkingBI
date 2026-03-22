@@ -5,11 +5,21 @@
 
 :root {
   --page-bg: #f8f9fb;
+  --page-fg: #0f172a;
+  --surface-bg: rgba(255, 255, 255, 0.88);
+  --surface-border: rgba(148, 163, 184, 0.38);
   --color-1: 0 100% 63%;
   --color-2: 270 100% 63%;
   --color-3: 210 100% 63%;
   --color-4: 195 100% 63%;
   --color-5: 90 100% 63%;
+}
+
+html[data-mode="dark"] {
+  --page-bg: linear-gradient(180deg, #020617 0%, #0f172a 60%, #111827 100%);
+  --page-fg: #e2e8f0;
+  --surface-bg: rgba(15, 23, 42, 0.82);
+  --surface-border: rgba(100, 116, 139, 0.5);
 }
 
 * {
@@ -22,7 +32,30 @@ body {
   padding: 0;
   font-family: "Outfit", sans-serif;
   background: var(--page-bg);
-  color: #0f172a;
+  color: var(--page-fg);
+  transition: background 300ms ease, color 250ms ease;
+}
+
+html[data-mode="dark"] .bg-white,
+html[data-mode="dark"] .bg-white\/80,
+html[data-mode="dark"] .bg-white\/85,
+html[data-mode="dark"] .bg-white\/90,
+html[data-mode="dark"] .bg-slate-50 {
+  background-color: var(--surface-bg) !important;
+}
+
+html[data-mode="dark"] .border-slate-200,
+html[data-mode="dark"] .border-slate-300,
+html[data-mode="dark"] .border-slate-300\/80 {
+  border-color: var(--surface-border) !important;
+}
+
+html[data-mode="dark"] .text-slate-900,
+html[data-mode="dark"] .text-slate-800,
+html[data-mode="dark"] .text-slate-700,
+html[data-mode="dark"] .text-slate-600,
+html[data-mode="dark"] .text-slate-500 {
+  color: #e2e8f0 !important;
 }
 
 h1,

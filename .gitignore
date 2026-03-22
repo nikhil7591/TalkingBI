@@ -10,6 +10,7 @@ backend/.env
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+frontend/.env
 
 # Data
 # Keep data folder tracked so the full dataset can be shared.

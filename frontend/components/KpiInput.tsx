@@ -39,7 +39,7 @@ const CHART_OPTIONS = [
   "nightingale",
 ];
 
-const DEFAULT_SELECTED = ["line", "bar", "area", "donut", "combo", "gauge"];
+const DEFAULT_SELECTED = ["line", "bar", "area", "donut", "scatter", "pie"];
 
 const PAID_CHARTS = new Set([
   "sankey",
@@ -58,6 +58,11 @@ const PAID_CHARTS = new Set([
   "funnel",
   "gauge",
 ]);
+
+const LOCKED_THEME_SLOTS = [
+  { title: "Dashboard 5 (Premium)", subtitle: "Executive Signal Room" },
+  { title: "Dashboard 6 (Premium)", subtitle: "Forecast Mission Control" },
+];
 
 function prettyName(type: string): string {
   return type
@@ -301,21 +306,21 @@ export default function KpiInput({ onSubmit, loading }: Props) {
         {/* Chart Selector - 60% */}
         <div className="col-span-3 rounded-xl border border-slate-200 p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">
+            <p className="text-sm font-semibold text-black">
               Select chart types ({selectedCharts.length}/25 selected)
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => quickSelect("all")}
-                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-black"
               >
                 Select all
               </button>
               <button
                 type="button"
                 onClick={() => quickSelect("clear")}
-                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-black"
               >
                 Clear
               </button>
@@ -347,7 +352,7 @@ export default function KpiInput({ onSubmit, loading }: Props) {
                       {chartThumbnail(type)}
                     </div>
                   </div>
-                  <div className="text-xs font-semibold text-slate-700">{prettyName(type)}</div>
+                  <div className="text-xs font-semibold text-black">{prettyName(type)}</div>
                 </button>
               );
             })}
@@ -398,6 +403,22 @@ export default function KpiInput({ onSubmit, loading }: Props) {
                   <div className="text-[9px] text-slate-500">Font: {AVAILABLE_THEMES[Object.keys(AVAILABLE_THEMES).find((k) => AVAILABLE_THEMES[k].name === selectedThemes[dashIdx]) || Object.keys(AVAILABLE_THEMES)[0]].textColor}</div>
                 </div>
               </div>
+            ))}
+
+            {LOCKED_THEME_SLOTS.map((slot) => (
+              <button
+                key={slot.title}
+                type="button"
+                onClick={() => setShowPaidPopup(true)}
+                className="w-full rounded-lg border border-amber-300 bg-amber-50/70 p-3 text-left transition hover:bg-amber-100/70"
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-xs font-semibold text-amber-800">{slot.title}</p>
+                  <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">LOCKED</span>
+                </div>
+                <p className="text-xs text-amber-700">{slot.subtitle}</p>
+                <p className="mt-2 text-[11px] text-amber-700">Upgrade to choose custom premium themes for this dashboard.</p>
+              </button>
             ))}
           </div>
         </div>

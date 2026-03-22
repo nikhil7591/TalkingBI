@@ -28,12 +28,18 @@ interface PricingProps {
   plans: PricingPlan[];
   title?: string;
   description?: string;
+  currencyCode?: string;
+  annualDiscountLabel?: string;
+  darkMode?: boolean;
 }
 
 export function Pricing({
   plans,
   title = "Simple, Transparent Pricing",
   description = "Choose the plan that works for you\nAll plans include access to our platform, lead generation tools, and dedicated support.",
+  currencyCode = "USD",
+  annualDiscountLabel = "Save 20%",
+  darkMode = false,
 }: PricingProps) {
   const [isMonthly, setIsMonthly] = useState(true);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -66,12 +72,14 @@ export function Pricing({
   return (
     <div className="container py-20">
       <div className="mb-12 space-y-4 text-center">
-        <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">{title}</h2>
-        <p className="text-lg text-slate-600 whitespace-pre-line">{description}</p>
+        <h2 className={cn("text-4xl font-bold tracking-tight sm:text-5xl", darkMode ? "text-white" : "text-slate-900")}>{title}</h2>
+        <p className={cn("whitespace-pre-line text-lg", darkMode ? "text-slate-300" : "text-slate-600")}>{description}</p>
       </div>
 
       <div className="mb-10 flex justify-center">
-        <label className="relative inline-flex cursor-pointer items-center">
+        <div className={cn("inline-flex items-center gap-3 rounded-full border px-4 py-2", darkMode ? "border-slate-700 bg-slate-900/70" : "border-slate-200 bg-white/90")}>
+          <span className={cn("text-sm font-semibold", isMonthly ? (darkMode ? "text-white" : "text-slate-900") : darkMode ? "text-slate-400" : "text-slate-500")}>Monthly</span>
+          <label className="relative inline-flex cursor-pointer items-center">
           <Label>
             <Switch
               ref={switchRef as unknown as React.Ref<HTMLButtonElement>}
@@ -80,10 +88,10 @@ export function Pricing({
               className="relative"
             />
           </Label>
-        </label>
-        <span className="ml-2 font-semibold">
-          Annual billing <span className="text-blue-600">(Save 20%)</span>
-        </span>
+          </label>
+          <span className={cn("text-sm font-semibold", !isMonthly ? (darkMode ? "text-white" : "text-slate-900") : darkMode ? "text-slate-400" : "text-slate-500")}>Annual</span>
+          <span className="text-xs font-semibold text-blue-500">{annualDiscountLabel}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -114,7 +122,9 @@ export function Pricing({
               "relative flex flex-col rounded-2xl border-[1px] p-6 text-center lg:flex lg:flex-col lg:justify-center",
               plan.isPopular
                 ? "border-blue-500 border-2 bg-blue-600 text-white"
-                : "border-slate-200 bg-white text-slate-900",
+                : darkMode
+                  ? "border-slate-700 bg-slate-900/85 text-white"
+                  : "border-slate-200 bg-white text-slate-900",
               !plan.isPopular && "mt-5",
               index === 0 || index === 2
                 ? "z-0 -translate-z-[50px] translate-x-0 translate-y-0 transform rotate-y-[10deg]"
@@ -130,14 +140,14 @@ export function Pricing({
               </div>
             )}
             <div className="flex flex-1 flex-col">
-              <p className={cn("text-base font-semibold", plan.isPopular ? "text-blue-100" : "text-slate-500")}>{plan.name}</p>
+              <p className={cn("text-base font-semibold", plan.isPopular ? "text-blue-100" : darkMode ? "text-slate-300" : "text-slate-500")}>{plan.name}</p>
               <div className="mt-6 flex items-center justify-center gap-x-2">
                 <span className="text-5xl font-bold tracking-tight">
                   <NumberFlow
                     value={isMonthly ? Number(plan.price) : Number(plan.yearlyPrice)}
                     format={{
                       style: "currency",
-                      currency: "USD",
+                      currency: currencyCode,
                       minimumFractionDigits: 0,
                       maximumFractionDigits: 0,
                     }}
@@ -147,13 +157,13 @@ export function Pricing({
                   />
                 </span>
                 {plan.period !== "Next 3 months" && (
-                  <span className={cn("text-sm font-semibold leading-6 tracking-wide", plan.isPopular ? "text-blue-100" : "text-slate-500")}>
+                  <span className={cn("text-sm font-semibold leading-6 tracking-wide", plan.isPopular ? "text-blue-100" : darkMode ? "text-slate-300" : "text-slate-500")}>
                     / {plan.period}
                   </span>
                 )}
               </div>
 
-              <p className={cn("text-xs leading-5", plan.isPopular ? "text-blue-100" : "text-slate-500")}>
+              <p className={cn("text-xs leading-5", plan.isPopular ? "text-blue-100" : darkMode ? "text-slate-300" : "text-slate-500")}>
                 {isMonthly ? "billed monthly" : "billed annually"}
               </p>
 
@@ -166,7 +176,7 @@ export function Pricing({
                 ))}
               </ul>
 
-              <hr className={cn("my-4 w-full", plan.isPopular ? "border-blue-300/40" : "border-slate-200")} />
+              <hr className={cn("my-4 w-full", plan.isPopular ? "border-blue-300/40" : darkMode ? "border-slate-700" : "border-slate-200")} />
 
               <Link
                 href={plan.href}
@@ -180,7 +190,7 @@ export function Pricing({
               >
                 {plan.buttonText}
               </Link>
-              <p className={cn("mt-6 text-xs leading-5", plan.isPopular ? "text-blue-100" : "text-slate-500")}>{plan.description}</p>
+              <p className={cn("mt-6 text-xs leading-5", plan.isPopular ? "text-blue-100" : darkMode ? "text-slate-300" : "text-slate-500")}>{plan.description}</p>
             </div>
           </motion.div>
         ))}

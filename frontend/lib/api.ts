@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { ApiResponse, DashboardSpec } from "@/lib/types";
+import { ApiResponse, ChatConversationDetail, ChatConversationSummary, ChatMessage, DashboardSpec } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -91,4 +91,24 @@ export async function askBiChat(payload: {
     }
     throw new Error("Unexpected error while asking BI chatbot.");
   }
+}
+
+export async function saveConversation(payload: {
+  title: string;
+  kpi?: string;
+  dashboardTitles?: string[];
+  messages: ChatMessage[];
+}): Promise<{ id: string }> {
+  const response = await axios.post("/api/conversations", payload, { timeout: 15000 });
+  return { id: response.data?.id || "" };
+}
+
+export async function listConversations(): Promise<ChatConversationSummary[]> {
+  const response = await axios.get("/api/conversations", { timeout: 15000 });
+  return response.data?.conversations || [];
+}
+
+export async function getConversation(id: string): Promise<ChatConversationDetail> {
+  const response = await axios.get(`/api/conversations/${id}`, { timeout: 15000 });
+  return response.data?.conversation;
 }

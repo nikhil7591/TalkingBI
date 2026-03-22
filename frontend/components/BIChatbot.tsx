@@ -4,21 +4,16 @@ import { useState } from "react";
 
 import { PromptInputBox } from "@/components/ui/ai-prompt-box";
 import { askBiChat } from "@/lib/api";
-import { DashboardSpec } from "@/lib/types";
-
-type Message = {
-  role: "user" | "assistant";
-  content: string;
-};
+import { ChatMessage, DashboardSpec } from "@/lib/types";
 
 type Props = {
   kpi: string;
   dashboardContext: DashboardSpec | null;
-  onHistoryEntry?: (entry: { id: string; title: string; createdAt: string; messages: Message[] }) => void;
+  onHistoryEntry?: (entry: { id: string; title: string; preview: string; createdAt: string; messages: ChatMessage[] }) => void;
 };
 
 export default function BIChatbot({ kpi, dashboardContext, onHistoryEntry }: Props) {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
       content:
@@ -27,12 +22,22 @@ export default function BIChatbot({ kpi, dashboardContext, onHistoryEntry }: Pro
   ]);
   const [loading, setLoading] = useState(false);
 
+  const sanitizeAssistantText = (raw: string): string =>
+    raw
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/^\s*[-*]\s+/gm, "")
+      .trim();
+
   const onSend = async (message: string) => {
     if (!message.trim() || !dashboardContext) {
       return;
     }
 
-    setMessages((prev) => [...prev, { role: "user", content: message }]);
+    const userMessage: ChatMessage = { role: "user", content: message };
+    const pendingMessages = [...messages, userMessage];
+    setMessages(pendingMessages);
     setLoading(true);
 
     try {
@@ -42,25 +47,22 @@ export default function BIChatbot({ kpi, dashboardContext, onHistoryEntry }: Pro
         dashboardSpec: dashboardContext,
       });
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: response.answer || "I could not derive an answer from the current dashboard context.",
-        },
-      ]);
+      const cleanedAnswer = sanitizeAssistantText(
+        response.answer || "I could not derive an answer from the current dashboard context."
+      );
 
-      const fullMessages: Message[] = [
-        ...messages,
-        { role: "user", content: message },
-        {
-          role: "assistant",
-          content: response.answer || "I could not derive an answer from the current dashboard context.",
-        },
-      ];
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: cleanedAnswer,
+      };
+      const fullMessages: ChatMessage[] = [...pendingMessages, assistantMessage];
+      setMessages(fullMessages);
+
+      const preview = message.trim().replace(/\s+/g, " ").slice(0, 90);
       onHistoryEntry?.({
         id: `${Date.now()}`,
-        title: `${kpi} - ${message.slice(0, 40)}`,
+        title: `${kpi} - chat`,
+        preview,
         createdAt: new Date().toISOString(),
         messages: fullMessages,
       });
