@@ -1,16 +1,9 @@
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 
 import { addDemoUser, findDemoUserByEmail } from "@/lib/demo-user-store";
 import { prisma } from "@/lib/prisma";
-
-function isPrismaKnownRequestError(error: unknown): error is { code: string } {
-  return !!error && typeof error === "object" && "code" in error && typeof (error as { code?: unknown }).code === "string";
-}
-
-function isPrismaInitError(error: unknown): boolean {
-  return !!error && typeof error === "object" && (error as { name?: string }).name === "PrismaClientInitializationError";
-}
 
 export async function POST(req: Request) {
   let name = "";
@@ -80,7 +73,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (isPrismaInitError(error)) {
+    if (error instanceof Prisma.PrismaClientInitializationError) {
       if (findDemoUserByEmail(email || "")) {
         return NextResponse.json({ error: "User already exists." }, { status: 409 });
       }
@@ -107,7 +100,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (isPrismaKnownRequestError(error)) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2021") {
         return NextResponse.json(
           { error: "Database tables are missing. Run: npm run prisma:migrate" },
