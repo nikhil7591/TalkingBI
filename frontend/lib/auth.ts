@@ -6,8 +6,10 @@ import { compare } from "bcryptjs";
 import { findDemoUserByEmail } from "@/lib/demo-user-store";
 import { prisma } from "@/lib/prisma";
 
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  ...(hasDatabaseUrl ? { adapter: PrismaAdapter(prisma) } : {}),
   session: {
     strategy: "jwt",
   },

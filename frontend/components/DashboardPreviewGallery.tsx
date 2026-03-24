@@ -18,8 +18,40 @@ type Props = {
   kpi: string;
 };
 
+const THUMB_BASE_WIDTH = 1200;
+const THUMB_BASE_HEIGHT = 760;
+
 function DashboardThumb({ dashboard, onClick, locked }: { dashboard: DashboardSpec; onClick: () => void; locked?: boolean }) {
   const theme = dashboard.theme;
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const [thumbScale, setThumbScale] = useState(0.22);
+
+  useEffect(() => {
+    const container = previewRef.current;
+    if (!container) {
+      return;
+    }
+
+    const updateScale = () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      if (!width || !height) {
+        return;
+      }
+
+      const fitByWidth = width / THUMB_BASE_WIDTH;
+      const fitByHeight = height / THUMB_BASE_HEIGHT;
+      setThumbScale(Math.min(fitByWidth, fitByHeight));
+    };
+
+    updateScale();
+
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <button
@@ -37,12 +69,17 @@ function DashboardThumb({ dashboard, onClick, locked }: { dashboard: DashboardSp
         </div>
       </div>
 
-      <div className="h-56 overflow-hidden bg-slate-100 p-2">
+      <div
+        ref={previewRef}
+        className="relative aspect-[1200/760] w-full overflow-hidden"
+        style={{ background: theme.background }}
+      >
         <div
-          className="pointer-events-none origin-top-left"
+          className="pointer-events-none absolute left-0 top-0 origin-top-left"
           style={{
-            width: "1200px",
-            transform: "scale(0.22)",
+            width: `${THUMB_BASE_WIDTH}px`,
+            height: `${THUMB_BASE_HEIGHT}px`,
+            transform: `scale(${thumbScale})`,
             transformOrigin: "top left",
             filter: locked ? "blur(4px) saturate(1.15)" : "none",
           }}
