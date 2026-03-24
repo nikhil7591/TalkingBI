@@ -4,7 +4,10 @@ import json
 import os
 from typing import Any
 
+from mem0 import Memory  # pyright: ignore[reportMissingImports]
 from openai import OpenAI
+
+mem0_client = Memory()
 
 
 class BiChatService:
@@ -43,15 +46,53 @@ class BiChatService:
             )
         return compact
 
+    @staticmethod
+    def _is_off_topic(question: str) -> bool:
+        q = question.lower().strip()
+        off_topic_markers = [
+            "joke",
+            "funny",
+            "poem",
+            "story",
+            "movie",
+            "song",
+            "roast",
+            "riddle",
+            "motivation",
+            "quote",
+        ]
+        data_markers = [
+            "kpi",
+            "dashboard",
+            "chart",
+            "trend",
+            "metric",
+            "revenue",
+            "sales",
+            "value",
+            "top",
+            "segment",
+            "region",
+            "month",
+        ]
+        return any(m in q for m in off_topic_markers) and not any(m in q for m in data_markers)
+
     def answer(
         self,
         question: str,
         kpi: str,
         dashboard_spec: dict[str, Any],
         user_name: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         if not question.strip():
             return {"answer": "Please ask a specific KPI question.", "sources": []}
+
+        if self._is_off_topic(question):
+            return {
+                "answer": "I can only answer questions related to the generated dashboard, KPI cards, chart trends, and insights. Please ask a dashboard-specific business question.",
+                "sources": ["kpiCards", "charts", "insightText"],
+            }
 
         title = str(dashboard_spec.get("title") or "Dashboard")
         focus = str(dashboard_spec.get("focus") or "analysis")
@@ -83,19 +124,42 @@ class BiChatService:
             }
 
         persona = user_name.strip() if user_name and user_name.strip() else "there"
+        resolved_user_id = (user_id or "anonymous-user").strip() or "anonymous-user"
+        user_message = question.strip()
 
-        prompt = f"""You are a personalized BI chatbot assistant for user '{persona}'.
-You only know the dashboard context below.
-Do not answer from outside assumptions.
-If context is missing, say exactly what is missing.
+        try:
+            memories = mem0_client.search(
+                query=user_message,
+                user_id=resolved_user_id,
+                limit=5,
+            )
+        except Exception:
+            memories = []
 
-Rules:
-1) Keep answer practical and data-grounded.
-2) If asked "why" (e.g., "Why did sales drop in March?"), explain likely driver from available chart/KPI patterns.
-3) Mention exact fields/values from context when possible.
-4) End with one short next-step recommendation.
-5) Max 120 words.
+        memory_context = "\n".join([m.get("memory", "") for m in memories if isinstance(m, dict) and m.get("memory")])
+        if not memory_context:
+            memory_context = "No previous context."
 
+        dashboard_data = compact_context.get("charts", [])
+        kpis = compact_context.get("kpiCards", [])
+
+        system_prompt = f"""
+You are a BI analyst assistant for Talking BI.
+Answer questions accurately using real dashboard data.
+    You are strictly restricted to dashboard context only.
+    If the user asks for anything unrelated (jokes, stories, generic chat), politely refuse and ask a KPI/dashboard question.
+    Never provide answers outside provided dashboard context.
+
+User's past context and preferences:
+{memory_context}
+
+Current dashboard data: {dashboard_data}
+Current KPIs: {kpis}
+
+Be concise and professional. Use real numbers only.
+"""
+
+        prompt = f"""User: {persona}
 Question:
 {question}
 
@@ -107,7 +171,7 @@ Context JSON:
             response = client.chat.completions.create(
                 model=self.openai_model,
                 messages=[
-                    {"role": "system", "content": "You are a concise BI analyst chatbot."},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.2,
@@ -119,6 +183,17 @@ Context JSON:
 
             if not message:
                 message = "I could not generate an answer from the provided dashboard context."
+
+            try:
+                mem0_client.add(
+                    messages=[
+                        {"role": "user", "content": user_message},
+                        {"role": "assistant", "content": message},
+                    ],
+                    user_id=resolved_user_id,
+                )
+            except Exception:
+                pass
 
             return {
                 "answer": message,

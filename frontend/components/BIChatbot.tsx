@@ -9,10 +9,11 @@ import { ChatMessage, DashboardSpec } from "@/lib/types";
 type Props = {
   kpi: string;
   dashboardContext: DashboardSpec | null;
+  userId?: string;
   onHistoryEntry?: (entry: { id: string; title: string; preview: string; createdAt: string; messages: ChatMessage[] }) => void;
 };
 
-export default function BIChatbot({ kpi, dashboardContext, onHistoryEntry }: Props) {
+export default function BIChatbot({ kpi, dashboardContext, userId, onHistoryEntry }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -45,6 +46,7 @@ export default function BIChatbot({ kpi, dashboardContext, onHistoryEntry }: Pro
         question: message,
         kpi,
         dashboardSpec: dashboardContext,
+        userId,
       });
 
       const cleanedAnswer = sanitizeAssistantText(

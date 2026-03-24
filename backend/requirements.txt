@@ -8,3 +8,6 @@ pydantic
 python-multipart
 httpx
 groq
+mem0ai
+sqlalchemy
+psycopg2-binary

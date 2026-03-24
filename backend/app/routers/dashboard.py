@@ -5,9 +5,20 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from app.routers.agents import (
+    DeepPrepRequest,
+    Doc2ChartRequest,
+    InsightsRequest,
+    SqlAgentRequest,
+    run_deepprep_agent,
+    run_doc2chart_agent,
+    run_insights_agent,
+    run_sql_agent,
+)
 from app.services.ai_service import ai_service
 from app.services.bi_chat_service import bi_chat_service
 from app.services.data_service import data_service
+from app.services.dynamic_dataset_service import dynamic_dataset_service
 from app.services.voice_service import voice_service
 
 router = APIRouter(tags=["dashboard"])
@@ -17,6 +28,9 @@ class DashboardRequest(BaseModel):
     kpi: str = Field(..., min_length=2)
     selectedCharts: list[str] = Field(default_factory=list)
     selectedThemes: list[str] = Field(default_factory=list)
+    user_id: str | None = Field(default=None)
+    session_id: str | None = Field(default=None)
+    use_url_dataset: bool = Field(default=False)
 
 
 class VoiceExplanationRequest(BaseModel):
@@ -29,6 +43,7 @@ class BiChatRequest(BaseModel):
     kpi: str = Field(..., min_length=2)
     dashboardSpec: dict[str, Any] = Field(...)
     userName: str | None = Field(default=None)
+    userId: str | None = Field(default=None)
 
 @router.get("/health")
 def health() -> dict[str, str]:
@@ -40,11 +55,54 @@ def datasets() -> dict:
     return {"datasets": data_service.list_datasets()}
 
 
+@router.post("/gen-dashboard")
 @router.post("/generate-dashboard")
-def generate_dashboard(payload: DashboardRequest) -> dict:
+async def generate_dashboard(payload: DashboardRequest) -> dict:
+    if payload.use_url_dataset and payload.session_id and payload.user_id:
+        dataset = dynamic_dataset_service.get_dataset_for_session(payload.session_id, payload.user_id)
+        if dataset:
+            step1 = await run_sql_agent(
+                SqlAgentRequest(
+                    kpi=payload.kpi,
+                    session_id=payload.session_id,
+                    user_id=payload.user_id,
+                )
+            )
+            columns = [c.get("name") for c in (dataset.get("columns") or []) if isinstance(c, dict) and c.get("name")]
+            step2 = await run_deepprep_agent(
+                DeepPrepRequest(
+                    rows=step1.get("rows") or [],
+                    columns=columns,
+                    kpi=payload.kpi,
+                )
+            )
+            step3 = await run_doc2chart_agent(
+                Doc2ChartRequest(
+                    rows=step2.get("cleaned_rows") or [],
+                    columns=columns,
+                    kpi=payload.kpi,
+                    user_id=payload.user_id,
+                )
+            )
+            step4 = await run_insights_agent(
+                InsightsRequest(
+                    rows=step2.get("cleaned_rows") or [],
+                    kpi=payload.kpi,
+                    dashboard_title="URL Dataset Dashboard",
+                )
+            )
+
+            return {
+                "dashboards": step3.get("dashboards") or [],
+                "insights": step4,
+                "source": "url_dataset",
+                "session_id": payload.session_id,
+            }
+
     aggregated = data_service.prepare_aggregated_rows(payload.kpi)
     spec = ai_service.generate_dashboard_spec(payload.kpi, aggregated, payload.selectedCharts, payload.selectedThemes)
-    spec["source"] = {
+    spec["source"] = "csv_fallback"
+    spec["source_meta"] = {
         "dataset": aggregated.get("dataset"),
         "meta": aggregated.get("meta", {}),
         "selected_charts": payload.selectedCharts,
@@ -66,4 +124,5 @@ def bi_chat(payload: BiChatRequest) -> dict[str, Any]:
         kpi=payload.kpi,
         dashboard_spec=payload.dashboardSpec,
         user_name=payload.userName,
+        user_id=payload.userId,
     )

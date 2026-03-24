@@ -7,6 +7,7 @@ import { Home, History, LayoutDashboard, LogIn, MessageSquarePlus, RotateCcw, Su
 import { signOut, useSession } from "next-auth/react";
 
 import BIChatbot from "@/components/BIChatbot";
+import DatasetUrlInput from "@/components/DatasetUrlInput";
 import DashboardPreviewGallery from "@/components/DashboardPreviewGallery";
 import KpiInput from "@/components/KpiInput";
 import { NavBar } from "@/components/ui/tubelight-navbar";
@@ -107,6 +108,8 @@ export default function DashboardPage() {
   const [paletteIdx, setPaletteIdx] = useState(0);
   const [mode, setMode] = useState<"light" | "dark">("light");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [datasetSessionId, setDatasetSessionId] = useState<string | null>(null);
+  const [useUrlDataset, setUseUrlDataset] = useState(false);
 
   useEffect(() => {
     const storedIdx = Number(localStorage.getItem("talkingbi_palette_idx") || "0");
@@ -255,7 +258,14 @@ export default function DashboardPage() {
     }, 1200);
 
     try {
-      const [data] = await Promise.all([generateDashboards(kpi, selectedCharts, selectedThemes), minDelay]);
+      const [data] = await Promise.all([
+        generateDashboards(kpi, selectedCharts, selectedThemes, {
+          userId: session?.user?.id,
+          sessionId: datasetSessionId || undefined,
+          useUrlDataset,
+        }),
+        minDelay,
+      ]);
 
       setGenerationStep(3);
       setDashboards(data);
@@ -423,6 +433,16 @@ export default function DashboardPage() {
         </video>
       </ContainerScroll>
 
+      <section className="mt-4">
+        <DatasetUrlInput
+          userId={session?.user?.id || undefined}
+          onDatasetStateChange={(state) => {
+            setDatasetSessionId(state.sessionId);
+            setUseUrlDataset(state.useUrlDataset && Boolean(state.sessionId));
+          }}
+        />
+      </section>
+
       <section className="mt-4 rounded-3xl border border-slate-200 bg-white/70 p-4 shadow-[0_14px_50px_rgba(15,23,42,0.10)] backdrop-blur lg:p-6">
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.9fr_1fr]">
           <KpiInput onSubmit={submitKpi} loading={loading} />
@@ -448,6 +468,7 @@ export default function DashboardPage() {
           <BIChatbot
             kpi={currentKpi}
             dashboardContext={chatbotContext}
+            userId={session?.user?.id || undefined}
             onHistoryEntry={(entry) =>
               void pushHistory({
                 ...entry,

@@ -4,12 +4,20 @@ import { ApiResponse, ChatConversationDetail, ChatConversationSummary, ChatMessa
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export async function generateDashboards(kpi: string, selectedCharts: string[], selectedThemes: string[] = []): Promise<DashboardSpec[]> {
+export async function generateDashboards(
+  kpi: string,
+  selectedCharts: string[],
+  selectedThemes: string[] = [],
+  options?: { userId?: string; sessionId?: string; useUrlDataset?: boolean }
+): Promise<DashboardSpec[]> {
   try {
-    const response = await axios.post<ApiResponse>(`${API_URL}/generate-dashboard`, {
+    const response = await axios.post<ApiResponse>(`${API_URL}/gen-dashboard`, {
       kpi,
       selectedCharts,
       selectedThemes,
+      user_id: options?.userId,
+      session_id: options?.sessionId,
+      use_url_dataset: Boolean(options?.useUrlDataset),
     }, { timeout: 45000 });
 
     if (!response.data?.dashboards?.length) {
@@ -26,6 +34,46 @@ export async function generateDashboards(kpi: string, selectedCharts: string[], 
     }
     throw new Error("Unexpected error while generating dashboards.");
   }
+}
+
+export async function ingestDataset(payload: {
+  url: string;
+  userId: string;
+  sessionId: string;
+}): Promise<{
+  dataset_id: string;
+  session_id: string;
+  columns: Array<{ name: string; dtype: string }>;
+  row_count: number;
+  sample_rows: Array<Record<string, unknown>>;
+  message: string;
+}> {
+  try {
+    const response = await axios.post(`${API_URL}/dataset/ingest`, {
+      url: payload.url,
+      user_id: payload.userId,
+      session_id: payload.sessionId,
+    }, { timeout: 40000 });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message =
+        (error.response?.data as { detail?: string } | undefined)?.detail ||
+        "Unable to ingest dataset URL right now.";
+      throw new Error(message);
+    }
+    throw new Error("Unexpected error while ingesting dataset URL.");
+  }
+}
+
+export async function cleanupDataset(sessionId: string): Promise<{ deleted: number; message: string }> {
+  const response = await axios.delete(`${API_URL}/dataset/cleanup/${sessionId}`, { timeout: 15000 });
+  return response.data;
+}
+
+export async function getDatasetStatus(sessionId: string): Promise<{ exists: boolean; columns: Array<{ name: string; dtype: string }>; row_count: number }> {
+  const response = await axios.get(`${API_URL}/dataset/status/${sessionId}`, { timeout: 15000 });
+  return response.data;
 }
 
 export async function generateVoiceExplanation(
@@ -75,6 +123,7 @@ export async function askBiChat(payload: {
   kpi: string;
   dashboardSpec: DashboardSpec;
   userName?: string;
+  userId?: string;
 }): Promise<{ answer: string; sources: string[] }> {
   try {
     const response = await axios.post(`${API_URL}/bi-chat`, payload, { timeout: 30000 });

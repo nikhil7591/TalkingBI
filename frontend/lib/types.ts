@@ -61,10 +61,12 @@ export interface DashboardSpec {
 
 export interface ApiResponse {
   dashboards: DashboardSpec[];
-  source?: {
+  source?: string | {
     dataset?: string;
     meta?: Record<string, unknown>;
   };
+  insights?: Record<string, unknown>;
+  session_id?: string;
 }
 
 export interface ChatMessage {

@@ -20,6 +20,7 @@ model User {
   subscriptions  Subscription[]
   usages         UsageEvent[]
   conversations  Conversation[]
+  dynamicDatasets DynamicDataset[]
 }
 
 model Account {
@@ -100,6 +101,23 @@ model Message {
   createdAt       DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model DynamicDataset {
+  id        String   @id @default(cuid())
+  userId    String
+  sessionId String
+  tableName String
+  rawData   Json
+  columns   Json
+  rowCount  Int
+  sourceUrl String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([sessionId])
+  @@index([expiresAt])
 }
 
 enum PlanTier {

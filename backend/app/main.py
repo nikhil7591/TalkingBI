@@ -8,7 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+from app.routers.agents import router as agents_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.dataset import router as dataset_router
 from app.services.data_service import data_service
 
 app = FastAPI(title="Talking BI Dashboard Generator", version="1.0.0")
@@ -25,6 +27,8 @@ app.add_middleware(
 )
 
 app.include_router(dashboard_router)
+app.include_router(agents_router)
+app.include_router(dataset_router)
 
 
 @app.on_event("startup")
