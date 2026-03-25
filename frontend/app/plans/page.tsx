@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Moon } from "lucide-react";
 
@@ -60,7 +60,12 @@ const demoPlans = [
 ];
 
 export default function PlansPage() {
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const storedMode = localStorage.getItem("talkingbi_mode");
+    setDarkMode(storedMode === "dark");
+  }, []);
 
   return (
     <main className={`min-h-screen px-4 py-8 md:px-8 ${darkMode ? "bg-[linear-gradient(180deg,#020617_0%,#0f172a_60%,#111827_100%)]" : "bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)]"}`}>
@@ -77,7 +82,7 @@ export default function PlansPage() {
           className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold backdrop-blur-xl ${darkMode ? "border-slate-600 bg-slate-900/70 text-white" : "border-slate-300 bg-white/80 text-slate-900"}`}
         >
           <Moon className="h-4 w-4" />
-          Dark Theme
+          {darkMode ? "Dark Theme" : "Light Theme"}
         </button>
       </div>
 

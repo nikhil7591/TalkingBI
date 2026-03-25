@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import io
+import re
 from typing import Any
 
 import httpx
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import create_engine, inspect
+
+try:
+    from pymongo import MongoClient  # type: ignore
+except Exception:  # pragma: no cover
+    MongoClient = None
 
 from app.services.dynamic_dataset_service import dynamic_dataset_service
 
@@ -19,6 +26,66 @@ class DatasetIngestRequest(BaseModel):
     session_id: str = Field(..., min_length=3)
 
 
+def _convert_google_drive_url(url: str) -> str:
+    if "drive.google.com" not in url:
+        return url
+
+    file_id_match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if not file_id_match:
+        file_id_match = re.search(r"id=([a-zA-Z0-9_-]+)", url)
+
+    if not file_id_match:
+        return url
+
+    file_id = file_id_match.group(1)
+    return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+
+def _is_db_url(url: str) -> bool:
+    return url.startswith((
+        "postgresql://",
+        "mysql://",
+        "mysql+pymysql://",
+        "sqlite://",
+        "mssql://",
+        "oracle://",
+        "mongodb://",
+        "mongodb+srv://",
+    ))
+
+
+def _load_from_sql_database(db_url: str) -> pd.DataFrame:
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    if not tables:
+        raise HTTPException(status_code=400, detail="No tables found in SQL database URL.")
+    first_table = tables[0]
+    query = f'SELECT * FROM "{first_table}" LIMIT 10000'
+    try:
+        return pd.read_sql_query(query, engine)
+    except Exception:
+        query = f"SELECT * FROM {first_table} LIMIT 10000"
+        return pd.read_sql_query(query, engine)
+
+
+def _load_from_mongo_database(db_url: str) -> pd.DataFrame:
+    if MongoClient is None:
+        raise HTTPException(status_code=400, detail="MongoDB URL support requires pymongo package.")
+
+    client = MongoClient(db_url)
+    db_name = client.get_default_database().name if client.get_default_database() is not None else None
+    if not db_name:
+        raise HTTPException(status_code=400, detail="MongoDB URL must include database name.")
+    db = client[db_name]
+    collections = db.list_collection_names()
+    if not collections:
+        raise HTTPException(status_code=400, detail="No collections found in MongoDB database.")
+    col = db[collections[0]]
+    docs = list(col.find({}, {"_id": 0}).limit(10000))
+    return pd.DataFrame(docs)
+
+
 def _json_safe_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     df = pd.DataFrame(rows)
     if df.empty:
@@ -29,35 +96,43 @@ def _json_safe_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 @router.post("/ingest")
 async def ingest_dataset(payload: DatasetIngestRequest) -> dict[str, Any]:
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-        try:
-            response = await client.get(payload.url)
-        except httpx.HTTPError as exc:
-            raise HTTPException(status_code=400, detail=f"Unable to fetch URL: {exc}") from exc
-
-    content_type = (response.headers.get("content-type") or "").lower()
-    url_lower = payload.url.lower()
+    source_url = _convert_google_drive_url(payload.url.strip())
 
     try:
-        if "text/csv" in content_type or url_lower.endswith(".csv"):
-            df = pd.read_csv(io.StringIO(response.text), low_memory=False)
-        elif "application/json" in content_type or url_lower.endswith(".json"):
-            data = response.json()
-            if isinstance(data, dict):
-                if isinstance(data.get("data"), list):
-                    df = pd.DataFrame(data["data"])
-                else:
-                    df = pd.DataFrame([data])
-            elif isinstance(data, list):
-                df = pd.DataFrame(data)
+        if _is_db_url(source_url):
+            if source_url.startswith(("mongodb://", "mongodb+srv://")):
+                df = _load_from_mongo_database(source_url)
             else:
-                raise HTTPException(status_code=400, detail="Unsupported JSON shape. Provide object/list JSON data.")
+                df = _load_from_sql_database(source_url)
         else:
-            raise HTTPException(status_code=400, detail="Unsupported format. Provide CSV or JSON URL.")
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                try:
+                    response = await client.get(source_url)
+                except httpx.HTTPError as exc:
+                    raise HTTPException(status_code=400, detail=f"Unable to fetch URL: {exc}") from exc
+
+            content_type = (response.headers.get("content-type") or "").lower()
+            url_lower = source_url.lower()
+
+            if "text/csv" in content_type or url_lower.endswith(".csv") or "drive.google.com/uc?export=download" in url_lower:
+                df = pd.read_csv(io.StringIO(response.text), low_memory=False)
+            elif "application/json" in content_type or url_lower.endswith(".json"):
+                data = response.json()
+                if isinstance(data, dict):
+                    if isinstance(data.get("data"), list):
+                        df = pd.DataFrame(data["data"])
+                    else:
+                        df = pd.DataFrame([data])
+                elif isinstance(data, list):
+                    df = pd.DataFrame(data)
+                else:
+                    raise HTTPException(status_code=400, detail="Unsupported JSON shape. Provide object/list JSON data.")
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported source. Use CSV/JSON URL, Google Drive CSV link, or database URL.")
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Failed to parse dataset: {exc}") from exc
+        raise HTTPException(status_code=400, detail=f"Failed to parse dataset source: {exc}") from exc
 
     if df.empty:
         raise HTTPException(status_code=400, detail="Parsed dataset is empty.")

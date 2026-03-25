@@ -77,15 +77,15 @@ export function Pricing({
       </div>
 
       <div className="mb-10 flex justify-center">
-        <div className={cn("inline-flex items-center gap-3 rounded-full border px-4 py-2", darkMode ? "border-slate-700 bg-slate-900/70" : "border-slate-200 bg-white/90")}>
+        <div className={cn("inline-flex items-center gap-3 rounded-full border px-4 py-2 shadow-sm", darkMode ? "border-slate-500 bg-slate-800/95" : "border-slate-300 bg-white") }>
           <span className={cn("text-sm font-semibold", isMonthly ? (darkMode ? "text-white" : "text-slate-900") : darkMode ? "text-slate-400" : "text-slate-500")}>Monthly</span>
-          <label className="relative inline-flex cursor-pointer items-center">
+          <label className="relative inline-flex cursor-pointer items-center rounded-full border px-1 py-0.5 border-slate-400/60 bg-white/90 dark:bg-slate-700/70">
           <Label>
             <Switch
               ref={switchRef as unknown as React.Ref<HTMLButtonElement>}
               checked={!isMonthly}
               onCheckedChange={handleToggle}
-              className="relative"
+              className="relative data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-slate-400"
             />
           </Label>
           </label>

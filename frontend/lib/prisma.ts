@@ -5,11 +5,25 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/talkingbi",
-});
+const databaseUrl = process.env.DATABASE_URL?.trim();
 
-export const prisma = global.prisma || new PrismaClient({ adapter });
+const prismaClient = (() => {
+  if (!databaseUrl) {
+    return new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("DATABASE_URL is not configured.");
+        },
+      }
+    ) as PrismaClient;
+  }
+
+  const adapter = new PrismaPg({ connectionString: databaseUrl });
+  return global.prisma || new PrismaClient({ adapter });
+})();
+
+export const prisma = prismaClient;
 
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;

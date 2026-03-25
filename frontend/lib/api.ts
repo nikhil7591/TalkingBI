@@ -1,16 +1,48 @@
 import axios from "axios";
 
+import { buildDashboards } from "@/lib/DesignEngine";
+import { AVAILABLE_THEMES, getThemeByName, THEME_KEYS } from "@/lib/themes";
 import { ApiResponse, ChatConversationDetail, ChatConversationSummary, ChatMessage, DashboardSpec } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+function normalizeThemeKey(themeInput: string | undefined): string {
+  if (!themeInput) return "dark-professional";
+  const normalized = themeInput.trim().toLowerCase();
+  if (THEME_KEYS.includes(normalized)) return normalized;
+
+  const reverseThemeMap = new Map<string, string>();
+  for (const key of THEME_KEYS) {
+    reverseThemeMap.set(AVAILABLE_THEMES[key].name.toLowerCase(), key);
+  }
+  return reverseThemeMap.get(normalized) || "dark-professional";
+}
 
 export async function generateDashboards(
   kpi: string,
   selectedCharts: string[],
   selectedThemes: string[] = [],
-  options?: { userId?: string; sessionId?: string; useUrlDataset?: boolean }
+  options?: { userId?: string; userEmail?: string; sessionId?: string; useUrlDataset?: boolean }
 ): Promise<DashboardSpec[]> {
   try {
+    if (options?.userId) {
+      try {
+        await axios.post(
+          "/api/credits/consume",
+          { userId: options.userId, userEmail: options.userEmail, eventType: "KPI_QUERY" },
+          { timeout: 10000 }
+        );
+      } catch (creditError) {
+        if (axios.isAxiosError(creditError)) {
+          const creditMsg =
+            (creditError.response?.data as { error?: string; warning?: string } | undefined)?.error ||
+            (creditError.response?.data as { warning?: string } | undefined)?.warning ||
+            "Credits check issue. Continuing with fallback mode.";
+          console.warn("Credit consume warning:", creditMsg);
+        }
+      }
+    }
+
     const response = await axios.post<ApiResponse>(`${API_URL}/gen-dashboard`, {
       kpi,
       selectedCharts,
@@ -20,11 +52,46 @@ export async function generateDashboards(
       use_url_dataset: Boolean(options?.useUrlDataset),
     }, { timeout: 45000 });
 
+    if (response.data?.source === "url" && response.data?.doc2chart) {
+      const preferredThemeKeys = (selectedThemes || []).map(normalizeThemeKey);
+      const primaryTheme = preferredThemeKeys[0] || "dark-professional";
+
+      const generated = buildDashboards(response.data.doc2chart as any, response.data.insights || {}, {
+        theme: primaryTheme as any,
+        selectedCharts: selectedCharts.length
+          ? selectedCharts
+          : ["line", "bar", "donut", "area", "combo", "heatmap", "sunburst", "waterfall"],
+        layout: "executive",
+        accentOverride: null,
+      });
+
+      return generated.map((dashboard, idx) => {
+        const themeKey = preferredThemeKeys[idx] || primaryTheme;
+        return {
+          ...dashboard,
+          theme: getThemeByName(themeKey),
+        };
+      });
+    }
+
     if (!response.data?.dashboards?.length) {
       throw new Error("No dashboards were generated.");
     }
 
-    return response.data.dashboards;
+    if (!selectedThemes.length) {
+      return response.data.dashboards;
+    }
+
+    const preferredThemeKeys = selectedThemes.map(normalizeThemeKey);
+    const fallbackThemeKey = preferredThemeKeys[0] || "dark-professional";
+
+    return response.data.dashboards.map((dashboard, idx) => {
+      const key = preferredThemeKeys[idx] || fallbackThemeKey;
+      return {
+        ...dashboard,
+        theme: getThemeByName(key),
+      };
+    });
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const message =

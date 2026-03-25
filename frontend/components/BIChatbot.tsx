@@ -9,11 +9,12 @@ import { ChatMessage, DashboardSpec } from "@/lib/types";
 type Props = {
   kpi: string;
   dashboardContext: DashboardSpec | null;
+  suggestions?: string[];
   userId?: string;
   onHistoryEntry?: (entry: { id: string; title: string; preview: string; createdAt: string; messages: ChatMessage[] }) => void;
 };
 
-export default function BIChatbot({ kpi, dashboardContext, userId, onHistoryEntry }: Props) {
+export default function BIChatbot({ kpi, dashboardContext, suggestions = [], userId, onHistoryEntry }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -105,6 +106,24 @@ export default function BIChatbot({ kpi, dashboardContext, userId, onHistoryEntr
         placeholder="Ask: Why did sales drop in March?"
         onSend={(message) => void onSend(message)}
       />
+
+      {suggestions.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">You can ask</p>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => void onSend(q)}
+                className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-500"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

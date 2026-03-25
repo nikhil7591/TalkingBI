@@ -46,33 +46,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
-    if (name && email && password) {
-      if (findDemoUserByEmail(email)) {
-        return NextResponse.json({ error: "User already exists." }, { status: 409 });
-      }
-
-      const fallbackHash = await hash(password, 10);
-      const demoUser = addDemoUser({
-        id: `demo-${Date.now()}`,
-        name,
-        email,
-        passwordHash: fallbackHash,
-      });
-
-      return NextResponse.json(
-        {
-          user: {
-            id: demoUser.id,
-            name: demoUser.name,
-            email: demoUser.email,
-            mode: "demo-fallback",
-          },
-          warning: "Database was unreachable. Account was created in temporary demo memory.",
-        },
-        { status: 201 }
-      );
-    }
-
     if (error instanceof Prisma.PrismaClientInitializationError) {
       if (findDemoUserByEmail(email || "")) {
         return NextResponse.json({ error: "User already exists." }, { status: 409 });

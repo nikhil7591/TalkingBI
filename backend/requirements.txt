@@ -11,3 +11,6 @@ groq
 mem0ai
 sqlalchemy
 psycopg2-binary
+rich
+bcrypt
+pymongo

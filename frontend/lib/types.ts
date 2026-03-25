@@ -24,6 +24,7 @@ export interface KpiCard {
   delta?: number;
   deltaDirection?: "up" | "down";
   deltaLabel?: string;
+  sparklineData?: number[];
 }
 
 export interface ChartPosition {
@@ -46,6 +47,7 @@ export interface Chart {
   showLegend?: boolean;
   legendPosition?: "top" | "bottom" | "left" | "right";
   showGrid?: boolean;
+  echartsOption?: Record<string, unknown>;
   data: Record<string, unknown>[];
 }
 
@@ -56,7 +58,8 @@ export interface DashboardSpec {
   kpiCards: KpiCard[];
   charts: Chart[];
   insightText: string;
-  layout?: string;
+  layout?: string | Record<string, unknown>;
+  voiceNarration?: string;
 }
 
 export interface ApiResponse {
@@ -65,6 +68,7 @@ export interface ApiResponse {
     dataset?: string;
     meta?: Record<string, unknown>;
   };
+  doc2chart?: Record<string, unknown>;
   insights?: Record<string, unknown>;
   session_id?: string;
 }

@@ -57,6 +57,7 @@ export default function DashboardRenderer({ dashboard }: Props) {
         {dashboard.charts.map((chart) => (
           <div
             key={chart.id}
+            className="group relative overflow-hidden transition-transform duration-300 hover:-translate-y-1"
             style={{
               gridColumn: `${chart.position.x + 1} / span ${chart.position.w}`,
               gridRow: `${chart.position.y + 1} / span ${chart.position.h}`,
@@ -67,6 +68,13 @@ export default function DashboardRenderer({ dashboard }: Props) {
               padding: "12px",
             }}
           >
+            <div
+              className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+              style={{
+                background:
+                  "radial-gradient(circle at 15% 15%, rgba(34,211,238,0.16), rgba(0,0,0,0) 55%)",
+              }}
+            />
             <div className="mb-2">
               <h3 className="text-sm font-semibold" style={{ color: safeTheme.textColor }}>
                 {chart.title}

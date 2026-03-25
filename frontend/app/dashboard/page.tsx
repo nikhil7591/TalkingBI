@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Home, History, LayoutDashboard, LogIn, MessageSquarePlus, RotateCcw, Sun, Moon, UserPlus, Crown } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
-import BIChatbot from "@/components/BIChatbot";
 import DatasetUrlInput from "@/components/DatasetUrlInput";
 import DashboardPreviewGallery from "@/components/DashboardPreviewGallery";
 import KpiInput from "@/components/KpiInput";
@@ -14,8 +13,8 @@ import { NavBar } from "@/components/ui/tubelight-navbar";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import DisplayCards from "@/components/ui/display-cards";
 import UniqueLoading from "@/components/ui/morph-loading";
-import { generateDashboards, listConversations, saveConversation } from "@/lib/api";
-import { ChatConversationSummary, ChatMessage, DashboardSpec } from "@/lib/types";
+import { generateDashboards, listConversations } from "@/lib/api";
+import { ChatConversationSummary, DashboardSpec } from "@/lib/types";
 
 const DASHBOARD_NAMES = [
   "Trend Analysis & Performance",
@@ -23,8 +22,6 @@ const DASHBOARD_NAMES = [
   "Deep Dive Analysis",
   "Performance Metrics",
 ];
-
-const PREMIUM_DASHBOARD_NAMES = ["Executive Signal Room", "Forecast Mission Control"];
 
 const PALETTES = [
   { bg: "#f8f9fb", fg: "#0f172a" },
@@ -98,6 +95,7 @@ function GenerationOverlay({ step }: { step: number }) {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [dashboards, setDashboards] = useState<DashboardSpec[]>([]);
   const [currentKpi, setCurrentKpi] = useState("");
   const [loading, setLoading] = useState(false);
@@ -110,6 +108,8 @@ export default function DashboardPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [datasetSessionId, setDatasetSessionId] = useState<string | null>(null);
   const [useUrlDataset, setUseUrlDataset] = useState(false);
+  const [creditInfo, setCreditInfo] = useState<{ remaining: number; limit: number } | null>(null);
+  const [selectedDashboardForChat, setSelectedDashboardForChat] = useState<string | null>(null);
   const dashboardCacheKey = useMemo(
     () => `talkingbi_dashboard_state_${session?.user?.id || "guest"}`,
     [session?.user?.id]
@@ -197,6 +197,30 @@ export default function DashboardPage() {
   }, [session?.user?.id]);
 
   useEffect(() => {
+    const fetchCredits = async () => {
+      if (!session?.user?.id) {
+        setCreditInfo(null);
+        return;
+      }
+      try {
+        const response = await fetch("/api/credits/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as { tokensRemaining?: number; dailyLimit?: number };
+        setCreditInfo({ remaining: Number(data.tokensRemaining || 0), limit: Number(data.dailyLimit || 30) });
+      } catch {
+        // Silent fail for non-blocking badge.
+      }
+    };
+    void fetchCredits();
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     const raw = localStorage.getItem(dashboardCacheKey);
     if (!raw) {
       return;
@@ -227,61 +251,6 @@ export default function DashboardPage() {
     );
   }, [dashboards, currentKpi, dashboardCacheKey]);
 
-  const pushHistory = async (entry: {
-    id: string;
-    title: string;
-    preview: string;
-    createdAt: string;
-    messages: ChatMessage[];
-    dashboards?: string[];
-  }) => {
-    if (session?.user?.id) {
-      try {
-        await saveConversation({
-          title: entry.title,
-          kpi: currentKpi,
-          messages: entry.messages,
-          dashboardTitles: entry.dashboards,
-        });
-        await refreshHistory();
-      } catch {
-        // Keep dashboard flow smooth even if history save fails.
-      }
-      return;
-    }
-
-    const raw = localStorage.getItem("talkingbi_chat_history_details");
-    let existing: Array<{
-      id: string;
-      title: string;
-      preview: string;
-      createdAt: string;
-      messages: ChatMessage[];
-      dashboards?: string[];
-    }> = [];
-
-    if (raw) {
-      try {
-        existing = JSON.parse(raw);
-      } catch {
-        existing = [];
-      }
-    }
-
-    const localId = `local-${Date.now()}`;
-    const next = [{ ...entry, id: localId }, ...existing].slice(0, 60);
-    localStorage.setItem("talkingbi_chat_history_details", JSON.stringify(next));
-    setHistories(
-      next.map((item) => ({
-        id: item.id,
-        title: item.title,
-        preview: item.preview,
-        createdAt: item.createdAt,
-        dashboards: item.dashboards,
-      }))
-    );
-  };
-
   const submitKpi = async (kpi: string, selectedCharts: string[], selectedThemes: string[]) => {
     setCurrentKpi(kpi);
     setLoading(true);
@@ -296,6 +265,7 @@ export default function DashboardPage() {
       const [data] = await Promise.all([
         generateDashboards(kpi, selectedCharts, selectedThemes, {
           userId: session?.user?.id,
+          userEmail: session?.user?.email || undefined,
           sessionId: datasetSessionId || undefined,
           useUrlDataset,
         }),
@@ -304,6 +274,25 @@ export default function DashboardPage() {
 
       setGenerationStep(3);
       setDashboards(data);
+      if (data.length > 0) {
+        setSelectedDashboardForChat(data[0].id);
+      }
+
+      if (session?.user?.id) {
+        try {
+          const res = await fetch("/api/credits/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
+          });
+          if (res.ok) {
+            const c = (await res.json()) as { tokensRemaining?: number; dailyLimit?: number };
+            setCreditInfo({ remaining: Number(c.tokensRemaining || 0), limit: Number(c.dailyLimit || 30) });
+          }
+        } catch {
+          // Ignore credit badge refresh failures.
+        }
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong. Please try again.";
       setError(msg);
@@ -313,24 +302,21 @@ export default function DashboardPage() {
     }
   };
 
-  const chatbotContext = useMemo<DashboardSpec | null>(() => {
+  const launchDashboardChat = () => {
     if (!dashboards.length) {
-      return null;
+      return;
     }
 
-    const mergedCharts = dashboards.flatMap((d) => d.charts || []);
-    const mergedCards = dashboards.flatMap((d) => d.kpiCards || []).slice(0, 10);
-    const base = dashboards[0];
-
-    return {
-      ...base,
-      id: "combined-dashboard-context",
-      title: "Combined Dashboard Context",
-      charts: mergedCharts,
-      kpiCards: mergedCards,
-      insightText: dashboards.map((d) => d.insightText).filter(Boolean).join(" | "),
+    const selectedId = selectedDashboardForChat || dashboards[0]?.id;
+    const payload = {
+      dashboards,
+      selectedDashboardId: selectedId,
+      currentKpi,
+      mode,
     };
-  }, [dashboards]);
+    sessionStorage.setItem("talkingbi_chat_flow", JSON.stringify(payload));
+    router.push(`/dashboard/chat?dashboardId=${encodeURIComponent(selectedId || "")}`);
+  };
 
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-[1600px] overflow-hidden px-4 pb-6 pt-20 md:px-8 md:pt-24">
@@ -501,18 +487,51 @@ export default function DashboardPage() {
       </section>
 
       {!loading && dashboards.length > 0 && (
-        <section className="mt-6">
-          <BIChatbot
-            kpi={currentKpi}
-            dashboardContext={chatbotContext}
-            userId={session?.user?.id || undefined}
-            onHistoryEntry={(entry) =>
-              void pushHistory({
-                ...entry,
-                dashboards: [...dashboards.map((d) => d.title), ...PREMIUM_DASHBOARD_NAMES],
-              })
-            }
-          />
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-[0_10px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+          <h3 className="text-lg font-bold text-slate-900">Choose Dashboard For Chat</h3>
+          <p className="mt-1 text-sm text-slate-600">Select a dashboard and continue to the dedicated chat page with animated handoff.</p>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+            {dashboards.slice(0, 4).map((dash, idx) => {
+              const active = selectedDashboardForChat === dash.id;
+              return (
+                <button
+                  key={dash.id}
+                  type="button"
+                  onClick={() => setSelectedDashboardForChat(dash.id)}
+                  className={`rounded-2xl border p-3 text-left transition-all duration-500 ${active ? "border-cyan-500 bg-cyan-50 shadow-[0_0_0_1px_rgba(6,182,212,0.45),0_18px_40px_rgba(6,182,212,0.18)] -translate-y-1" : "border-slate-200 bg-white"}`}
+                  style={{ animationDelay: `${idx * 90}ms` }}
+                >
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dashboard {idx + 1}</div>
+                  <div className="mt-1 text-sm font-bold text-slate-900">{dash.title}</div>
+                  <div className="mt-1 text-xs text-slate-600">Tap to activate chat context</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Related Multi Query Suggestions</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {["Which segment is highest contributor?", "Why did trend dip in latest period?", "Compare top 3 regions with exact numbers", "What should be next best action?"]
+                .map((q) => (
+                  <span key={q} className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                    {q}
+                  </span>
+                ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-slate-600">Selected: <span className="font-semibold text-slate-900">{dashboards.find((d) => d.id === selectedDashboardForChat)?.title || dashboards[0]?.title}</span></p>
+            <button
+              type="button"
+              onClick={launchDashboardChat}
+              className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:scale-[1.02]"
+            >
+              Continue to Dashboard Chat
+            </button>
+          </div>
         </section>
       )}
 
@@ -538,6 +557,14 @@ export default function DashboardPage() {
           </>
         ) : null}
       </div>
+
+      {creditInfo ? (
+        <div className="fixed left-4 top-3 z-50 md:left-8 md:top-4">
+          <div className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-lg">
+            Credits: {creditInfo.remaining}/{creditInfo.limit}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -4,6 +4,8 @@ from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from rich.console import Console
+from rich.panel import Panel
 
 from app.routers.agents import (
     DeepPrepRequest,
@@ -22,6 +24,7 @@ from app.services.dynamic_dataset_service import dynamic_dataset_service
 from app.services.voice_service import voice_service
 
 router = APIRouter(tags=["dashboard"])
+console = Console()
 
 
 def _apply_user_preferences_and_fill_data(
@@ -55,6 +58,7 @@ class DashboardRequest(BaseModel):
     user_id: str | None = Field(default=None)
     session_id: str | None = Field(default=None)
     use_url_dataset: bool = Field(default=False)
+    user_preferences: dict[str, Any] = Field(default_factory=dict)
 
 
 class VoiceExplanationRequest(BaseModel):
@@ -82,66 +86,90 @@ def datasets() -> dict:
 @router.post("/gen-dashboard")
 @router.post("/generate-dashboard")
 async def generate_dashboard(payload: DashboardRequest) -> dict:
-    if payload.use_url_dataset and payload.session_id and payload.user_id:
-        dataset = dynamic_dataset_service.get_dataset_for_session(payload.session_id, payload.user_id)
-        if dataset:
-            step1 = await run_sql_agent(
-                SqlAgentRequest(
-                    kpi=payload.kpi,
-                    session_id=payload.session_id,
-                    user_id=payload.user_id,
-                )
+    try:
+        console.print(
+            Panel(
+                "[bold white]TALKING BI PIPELINE[/bold white]\n"
+                f"[white]KPI:[/white] [yellow]{payload.kpi}[/yellow]\n"
+                f"[white]Mode:[/white] [cyan]{'URL Dataset' if payload.use_url_dataset else 'CSV Fallback'}[/cyan]\n"
+                f"[white]User:[/white] {payload.user_id or 'guest'}",
+                border_style="white",
+                title="PIPELINE START",
             )
-            columns = [c.get("name") for c in (dataset.get("columns") or []) if isinstance(c, dict) and c.get("name")]
-            step2 = await run_deepprep_agent(
-                DeepPrepRequest(
-                    rows=step1.get("rows") or [],
-                    columns=columns,
-                    kpi=payload.kpi,
-                )
-            )
-            step3 = await run_doc2chart_agent(
-                Doc2ChartRequest(
-                    rows=step2.get("cleaned_rows") or [],
-                    columns=columns,
-                    kpi=payload.kpi,
-                    user_id=payload.user_id,
-                )
-            )
-            step4 = await run_insights_agent(
-                InsightsRequest(
-                    rows=step2.get("cleaned_rows") or [],
-                    kpi=payload.kpi,
-                    dashboard_title="URL Dataset Dashboard",
-                )
-            )
+        )
 
-            spec = {"dashboards": step3.get("dashboards") or []}
-            cleaned_rows = step2.get("cleaned_rows") or []
-            spec = _apply_user_preferences_and_fill_data(
-                spec,
-                payload.selectedCharts,
-                payload.selectedThemes,
-                cleaned_rows,
+        if payload.use_url_dataset and payload.session_id and payload.user_id:
+            dataset = dynamic_dataset_service.get_dataset_for_session(payload.session_id, payload.user_id)
+            if dataset:
+                step1 = await run_sql_agent(
+                    SqlAgentRequest(
+                        kpi=payload.kpi,
+                        session_id=payload.session_id,
+                        user_id=payload.user_id,
+                    )
+                )
+                columns = [c.get("name") for c in (dataset.get("columns") or []) if isinstance(c, dict) and c.get("name")]
+                step2 = await run_deepprep_agent(
+                    DeepPrepRequest(
+                        rows=step1.get("rows") or [],
+                        columns=columns,
+                        kpi=payload.kpi,
+                    )
+                )
+                step3 = await run_doc2chart_agent(
+                    Doc2ChartRequest(
+                        rows=step2.get("cleaned_rows") or [],
+                        columns=columns,
+                        kpi=payload.kpi,
+                        user_id=payload.user_id,
+                        user_preferences=payload.user_preferences,
+                    )
+                )
+                step4 = await run_insights_agent(
+                    InsightsRequest(
+                        rows=step2.get("cleaned_rows") or [],
+                        kpi=payload.kpi,
+                        dashboard_title="URL Dataset Dashboard",
+                    )
+                )
+
+                console.print(
+                    Panel(
+                        "[bold green]PIPELINE COMPLETE[/bold green]\n"
+                        "[green]4 dashboards generated successfully[/green]",
+                        border_style="green",
+                        title="PIPELINE DONE",
+                    )
+                )
+                return {
+                    "doc2chart": step3,
+                    "insights": step4,
+                    "source": "url",
+                    "session_id": payload.session_id,
+                }
+
+        console.print("[cyan]CSV Fallback mode[/cyan]")
+        aggregated = data_service.prepare_aggregated_rows(payload.kpi)
+        spec = ai_service.generate_dashboard_spec(payload.kpi, aggregated, payload.selectedCharts, payload.selectedThemes)
+        spec["source"] = "csv_fallback"
+        console.print(
+            Panel(
+                "[bold green]PIPELINE COMPLETE[/bold green]\n"
+                "[green]4 dashboards generated successfully[/green]",
+                border_style="green",
+                title="PIPELINE DONE",
             )
-
-            return {
-                "dashboards": spec.get("dashboards") or [],
-                "insights": step4,
-                "source": "url_dataset",
-                "session_id": payload.session_id,
-            }
-
-    aggregated = data_service.prepare_aggregated_rows(payload.kpi)
-    spec = ai_service.generate_dashboard_spec(payload.kpi, aggregated, payload.selectedCharts, payload.selectedThemes)
-    spec["source"] = "csv_fallback"
-    spec["source_meta"] = {
-        "dataset": aggregated.get("dataset"),
-        "meta": aggregated.get("meta", {}),
-        "selected_charts": payload.selectedCharts,
-        "selected_themes": payload.selectedThemes,
-    }
-    return spec
+        )
+        spec["source_meta"] = {
+            "dataset": aggregated.get("dataset"),
+            "meta": aggregated.get("meta", {}),
+            "selected_charts": payload.selectedCharts,
+            "selected_themes": payload.selectedThemes,
+        }
+        return spec
+    except Exception as exc:
+        console.print(Panel(f"[bold red]PIPELINE ERROR[/bold red]\n{exc}", border_style="red", title="PIPELINE FAILED"))
+        raise
 
 
 @router.post("/voice-explanation")
