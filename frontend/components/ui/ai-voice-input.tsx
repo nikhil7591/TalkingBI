@@ -10,6 +10,7 @@ interface AIVoiceInputProps {
   visualizerBars?: number;
   demoMode?: boolean;
   demoInterval?: number;
+  darkMode?: boolean;
   className?: string;
 }
 
@@ -19,6 +20,7 @@ export function AIVoiceInput({
   visualizerBars = 48,
   demoMode = false,
   demoInterval = 3000,
+  darkMode = false,
   className,
 }: AIVoiceInputProps) {
   const [submitted, setSubmitted] = useState(false);
@@ -93,25 +95,25 @@ export function AIVoiceInput({
         <button
           className={cn(
             "group flex h-16 w-16 items-center justify-center rounded-xl transition-colors",
-            submitted ? "bg-none" : "bg-none hover:bg-black/10"
+            submitted ? "bg-none" : darkMode ? "bg-none hover:bg-white/10" : "bg-none hover:bg-black/10"
           )}
           type="button"
           onClick={handleClick}
         >
           {submitted ? (
             <div
-              className="h-6 w-6 cursor-pointer rounded-sm bg-black animate-spin"
+              className={cn("h-6 w-6 cursor-pointer rounded-sm animate-spin", darkMode ? "bg-white" : "bg-black")}
               style={{ animationDuration: "3s" }}
             />
           ) : (
-            <Mic className="h-6 w-6 text-black/70" />
+            <Mic className={cn("h-6 w-6", darkMode ? "text-white/80" : "text-black/70")} />
           )}
         </button>
 
         <span
           className={cn(
             "font-mono text-sm transition-opacity duration-300",
-            submitted ? "text-black/70" : "text-black/30"
+            submitted ? (darkMode ? "text-white/70" : "text-black/70") : darkMode ? "text-white/35" : "text-black/30"
           )}
         >
           {formatTime(time)}
@@ -123,7 +125,13 @@ export function AIVoiceInput({
               key={i}
               className={cn(
                 "w-0.5 rounded-full transition-all duration-300",
-                submitted ? "bg-black/50 animate-pulse" : "h-1 bg-black/10"
+                submitted
+                  ? darkMode
+                    ? "bg-white/55 animate-pulse"
+                    : "bg-black/50 animate-pulse"
+                  : darkMode
+                    ? "h-1 bg-white/12"
+                    : "h-1 bg-black/10"
               )}
               style={
                 submitted && isClient
@@ -137,7 +145,7 @@ export function AIVoiceInput({
           ))}
         </div>
 
-        <p className="h-4 text-xs text-black/70">{submitted ? "Listening..." : "Click to speak"}</p>
+        <p className={cn("h-4 text-xs", darkMode ? "text-white/75" : "text-black/70")}>{submitted ? "Listening..." : "Click to speak"}</p>
       </div>
     </div>
   );

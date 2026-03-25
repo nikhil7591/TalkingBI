@@ -9,6 +9,7 @@ import { AIVoiceInput } from "@/components/ui/ai-voice-input";
 type Props = {
   onSubmit: (kpi: string, selectedCharts: string[], selectedThemes: string[]) => void;
   loading: boolean;
+  mode?: "light" | "dark";
 };
 
 const CHART_OPTIONS = [
@@ -160,7 +161,8 @@ declare global {
   }
 }
 
-export default function KpiInput({ onSubmit, loading }: Props) {
+export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
+  const isDark = mode === "dark";
   const [value, setValue] = useState("");
   const [listening, setListening] = useState(false);
   const [dotCount, setDotCount] = useState(0);
@@ -261,7 +263,7 @@ export default function KpiInput({ onSubmit, loading }: Props) {
   };
 
   return (
-    <form onSubmit={submit} className="w-full rounded-3xl border border-slate-200 bg-white/85 p-4 shadow-[0_16px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm md:p-6">
+    <form onSubmit={submit} className={`w-full rounded-3xl border p-4 shadow-[0_16px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm md:p-6 ${isDark ? "border-slate-700 bg-slate-900/85" : "border-slate-200 bg-white/85"}`}>
       <div className="grid gap-4 md:grid-cols-[1.2fr_320px]">
         <div className="space-y-3">
           <textarea
@@ -269,7 +271,7 @@ export default function KpiInput({ onSubmit, loading }: Props) {
             onChange={(e) => setValue(e.target.value)}
             placeholder="Ask KPI like: Monthly Revenue by Region"
             rows={3}
-            className="w-full rounded-2xl border border-slate-300/80 bg-white px-4 py-3 text-base outline-none transition focus:border-slate-500 md:min-h-[96px]"
+            className={`w-full rounded-2xl border px-4 py-3 text-base outline-none transition md:min-h-[96px] ${isDark ? "border-slate-600 bg-slate-950 text-white placeholder:text-slate-400 focus:border-slate-400" : "border-slate-300/80 bg-white text-slate-900 focus:border-slate-500"}`}
           />
 
           <div className="flex flex-wrap items-center gap-2">
@@ -280,47 +282,48 @@ export default function KpiInput({ onSubmit, loading }: Props) {
             >
               Generate Dashboards
             </button>
-            <span className="text-sm text-slate-500">Tip: speak naturally, then fine-tune text before submit.</span>
+            <span className={`text-sm ${isDark ? "text-slate-300" : "text-slate-500"}`}>Tip: speak naturally, then fine-tune text before submit.</span>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2">
+        <div className={`rounded-2xl border p-2 ${isDark ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
           <AIVoiceInput
             key={voiceUiResetKey}
             onStart={startVoiceCapture}
             onStop={() => stopVoiceCapture()}
             visualizerBars={36}
+            darkMode={isDark}
           />
-          <p className="pb-2 text-center text-xs text-slate-600">
+          <p className={`pb-2 text-center text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
             {listening ? "Recognizing voice in real-time..." : "Use mic to fill KPI prompt"}
           </p>
         </div>
       </div>
       {loading && (
-        <p className="mt-3 text-sm text-slate-600">
+        <p className={`mt-3 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
           Analyzing data{dots} <span className="animate-pulse">Please wait</span>
         </p>
       )}
 
       <div className="mt-4 grid grid-cols-5 gap-4">
         {/* Chart Selector - 60% */}
-        <div className="col-span-3 rounded-xl border border-slate-200 p-3">
+        <div className={`col-span-3 rounded-xl border p-3 ${isDark ? "border-slate-700 bg-slate-900/65" : "border-slate-200"}`}>
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-black">
+            <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
               Select chart types ({selectedCharts.length}/25 selected)
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => quickSelect("all")}
-                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-black"
+                className={`rounded-md px-2 py-1 text-xs font-semibold ${isDark ? "bg-slate-700 text-white" : "bg-slate-100 text-black"}`}
               >
                 Select all
               </button>
               <button
                 type="button"
                 onClick={() => quickSelect("clear")}
-                className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-black"
+                className={`rounded-md px-2 py-1 text-xs font-semibold ${isDark ? "bg-slate-700 text-white" : "bg-slate-100 text-black"}`}
               >
                 Clear
               </button>
@@ -338,8 +341,8 @@ export default function KpiInput({ onSubmit, loading }: Props) {
                   onClick={() => toggleChart(type)}
                   className="relative rounded-lg border p-2 text-left transition"
                   style={{
-                    borderColor: active ? "#0f172a" : "#cbd5e1",
-                    background: active ? "#f8fafc" : "#ffffff",
+                    borderColor: active ? (isDark ? "#f8fafc" : "#0f172a") : isDark ? "#475569" : "#cbd5e1",
+                    background: active ? (isDark ? "#0f172a" : "#f8fafc") : isDark ? "#111827" : "#ffffff",
                   }}
                 >
                   {isPaid && (
@@ -347,12 +350,12 @@ export default function KpiInput({ onSubmit, loading }: Props) {
                       PAID
                     </span>
                   )}
-                  <div className="mb-2 h-10 rounded-md bg-gradient-to-br from-slate-100 to-slate-200 p-1">
-                    <div className="h-full w-full rounded bg-white px-1 py-0.5">
+                  <div className={`mb-2 h-10 rounded-md p-1 ${isDark ? "bg-gradient-to-br from-slate-700 to-slate-800" : "bg-gradient-to-br from-slate-100 to-slate-200"}`}>
+                    <div className={`h-full w-full rounded px-1 py-0.5 ${isDark ? "bg-slate-900" : "bg-white"}`}>
                       {chartThumbnail(type)}
                     </div>
                   </div>
-                  <div className="text-xs font-semibold text-black">{prettyName(type)}</div>
+                  <div className={`text-xs font-semibold ${isDark ? "text-white" : "text-black"}`}>{prettyName(type)}</div>
                 </button>
               );
             })}
@@ -364,12 +367,12 @@ export default function KpiInput({ onSubmit, loading }: Props) {
         </div>
 
         {/* Theme Selector - 40% */}
-        <div className="col-span-2 rounded-xl border border-slate-200 p-3">
-          <p className="mb-3 text-sm font-semibold text-slate-700">Select theme for each dashboard</p>
+        <div className={`col-span-2 rounded-xl border p-3 ${isDark ? "border-slate-700 bg-slate-900/65" : "border-slate-200"}`}>
+          <p className={`mb-3 text-sm font-semibold ${isDark ? "text-white" : "text-slate-700"}`}>Select theme for each dashboard</p>
           <div className="space-y-2 overflow-y-auto max-h-80">
             {[0, 1, 2, 3].map((dashIdx) => (
-              <div key={dashIdx} className="rounded-lg border border-slate-300 p-2">
-                <label className="mb-1 block text-xs font-semibold text-slate-600">
+              <div key={dashIdx} className={`rounded-lg border p-2 ${isDark ? "border-slate-600" : "border-slate-300"}`}>
+                <label className={`mb-1 block text-xs font-semibold ${isDark ? "text-slate-200" : "text-slate-600"}`}>
                   Dashboard {dashIdx + 1}
                 </label>
                 <select
@@ -379,7 +382,7 @@ export default function KpiInput({ onSubmit, loading }: Props) {
                     newThemes[dashIdx] = e.target.value;
                     setSelectedThemes(newThemes);
                   }}
-                  className="mb-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 outline-none transition focus:border-slate-500"
+                  className={`mb-2 w-full rounded border px-2 py-1 text-xs outline-none transition ${isDark ? "border-slate-600 bg-slate-800 text-white focus:border-slate-400" : "border-slate-300 bg-white text-slate-700 focus:border-slate-500"}`}
                 >
                   {THEME_KEYS.map((themeKey) => (
                     <option key={themeKey} value={AVAILABLE_THEMES[themeKey].name}>
@@ -389,18 +392,18 @@ export default function KpiInput({ onSubmit, loading }: Props) {
                 </select>
 
                 {/* Theme Color Preview */}
-                <div className="rounded border border-slate-200 p-1">
+                <div className={`rounded border p-1 ${isDark ? "border-slate-600" : "border-slate-200"}`}>
                   <div className="mb-1 flex flex-wrap gap-1">
                     {AVAILABLE_THEMES[Object.keys(AVAILABLE_THEMES).find((k) => AVAILABLE_THEMES[k].name === selectedThemes[dashIdx]) || Object.keys(AVAILABLE_THEMES)[0]].chartColors.slice(0, 5).map((color, idx) => (
                       <div
                         key={idx}
-                        className="h-3 w-3 rounded border border-slate-300"
+                        className={`h-3 w-3 rounded border ${isDark ? "border-slate-500" : "border-slate-300"}`}
                         style={{ background: color }}
                         title={color}
                       />
                     ))}
                   </div>
-                  <div className="text-[9px] text-slate-500">Font: {AVAILABLE_THEMES[Object.keys(AVAILABLE_THEMES).find((k) => AVAILABLE_THEMES[k].name === selectedThemes[dashIdx]) || Object.keys(AVAILABLE_THEMES)[0]].textColor}</div>
+                  <div className={`text-[9px] ${isDark ? "text-slate-300" : "text-slate-500"}`}>Font: {AVAILABLE_THEMES[Object.keys(AVAILABLE_THEMES).find((k) => AVAILABLE_THEMES[k].name === selectedThemes[dashIdx]) || Object.keys(AVAILABLE_THEMES)[0]].textColor}</div>
                 </div>
               </div>
             ))}

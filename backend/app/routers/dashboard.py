@@ -24,6 +24,30 @@ from app.services.voice_service import voice_service
 router = APIRouter(tags=["dashboard"])
 
 
+def _apply_user_preferences_and_fill_data(
+    spec: dict[str, Any],
+    selected_charts: list[str],
+    selected_themes: list[str],
+    fallback_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    updated = spec
+    if selected_charts:
+        updated = ai_service._apply_selected_chart_types(updated, selected_charts)
+    if selected_themes:
+        updated = ai_service._apply_themes_to_dashboards(updated, selected_themes)
+
+    for dashboard in updated.get("dashboards", []):
+        charts = dashboard.get("charts", [])
+        for chart in charts:
+            if not isinstance(chart, dict):
+                continue
+            data_rows = chart.get("data")
+            if not isinstance(data_rows, list) or len(data_rows) == 0:
+                chart["data"] = fallback_rows[:60]
+
+    return updated
+
+
 class DashboardRequest(BaseModel):
     kpi: str = Field(..., min_length=2)
     selectedCharts: list[str] = Field(default_factory=list)
@@ -92,8 +116,17 @@ async def generate_dashboard(payload: DashboardRequest) -> dict:
                 )
             )
 
+            spec = {"dashboards": step3.get("dashboards") or []}
+            cleaned_rows = step2.get("cleaned_rows") or []
+            spec = _apply_user_preferences_and_fill_data(
+                spec,
+                payload.selectedCharts,
+                payload.selectedThemes,
+                cleaned_rows,
+            )
+
             return {
-                "dashboards": step3.get("dashboards") or [],
+                "dashboards": spec.get("dashboards") or [],
                 "insights": step4,
                 "source": "url_dataset",
                 "session_id": payload.session_id,

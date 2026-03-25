@@ -110,6 +110,10 @@ export default function DashboardPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [datasetSessionId, setDatasetSessionId] = useState<string | null>(null);
   const [useUrlDataset, setUseUrlDataset] = useState(false);
+  const dashboardCacheKey = useMemo(
+    () => `talkingbi_dashboard_state_${session?.user?.id || "guest"}`,
+    [session?.user?.id]
+  );
 
   useEffect(() => {
     const storedIdx = Number(localStorage.getItem("talkingbi_palette_idx") || "0");
@@ -191,6 +195,37 @@ export default function DashboardPage() {
   useEffect(() => {
     void refreshHistory();
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(dashboardCacheKey);
+    if (!raw) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as { dashboards?: DashboardSpec[]; kpi?: string };
+      if (parsed?.dashboards?.length) {
+        setDashboards(parsed.dashboards);
+        if (parsed.kpi) {
+          setCurrentKpi(parsed.kpi);
+        }
+      }
+    } catch {
+      // Ignore invalid local cache.
+    }
+  }, [dashboardCacheKey]);
+
+  useEffect(() => {
+    if (!dashboards.length) {
+      return;
+    }
+    localStorage.setItem(
+      dashboardCacheKey,
+      JSON.stringify({
+        dashboards,
+        kpi: currentKpi,
+      })
+    );
+  }, [dashboards, currentKpi, dashboardCacheKey]);
 
   const pushHistory = async (entry: {
     id: string;
@@ -311,6 +346,7 @@ export default function DashboardPage() {
             setCurrentKpi("");
             setDashboards([]);
             setError("");
+            localStorage.removeItem(dashboardCacheKey);
           }
         }}
       />
@@ -435,6 +471,7 @@ export default function DashboardPage() {
 
       <section className="mt-4">
         <DatasetUrlInput
+          mode={mode}
           userId={session?.user?.id || undefined}
           onDatasetStateChange={(state) => {
             setDatasetSessionId(state.sessionId);
@@ -445,7 +482,7 @@ export default function DashboardPage() {
 
       <section className="mt-4 rounded-3xl border border-slate-200 bg-white/70 p-4 shadow-[0_14px_50px_rgba(15,23,42,0.10)] backdrop-blur lg:p-6">
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.9fr_1fr]">
-          <KpiInput onSubmit={submitKpi} loading={loading} />
+          <KpiInput onSubmit={submitKpi} loading={loading} mode={mode} />
           <div className="hidden rounded-2xl border border-slate-200 bg-white/80 p-4 lg:block">
             <div className="mb-2 text-sm font-semibold text-slate-700">Quick Dashboard Highlights</div>
             <DisplayCards />

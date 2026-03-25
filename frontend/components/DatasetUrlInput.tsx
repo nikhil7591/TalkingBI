@@ -15,10 +15,12 @@ type DatasetState = {
 
 type Props = {
   userId?: string;
+  mode?: "light" | "dark";
   onDatasetStateChange: (state: DatasetState) => void;
 };
 
-export default function DatasetUrlInput({ userId, onDatasetStateChange }: Props) {
+export default function DatasetUrlInput({ userId, mode = "light", onDatasetStateChange }: Props) {
+  const isDark = mode === "dark";
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -111,7 +113,7 @@ export default function DatasetUrlInput({ userId, onDatasetStateChange }: Props)
   return (
     <div className="w-full">
       <div className="px-2 pb-3">
-        <h3 className="text-lg font-bold text-slate-900">Connect Your Dataset</h3>
+        <h3 className={`text-lg font-bold ${isDark ? "text-white" : "text-slate-900"}`}>Connect Your Dataset</h3>
       </div>
 
       <div className="relative pb-6 pt-3">
@@ -134,7 +136,7 @@ export default function DatasetUrlInput({ userId, onDatasetStateChange }: Props)
         </div>
 
         <div className="relative z-20 mx-auto mt-14 w-[min(960px,94%)] px-2">
-          <div className="mb-3 flex items-center justify-center gap-2 text-violet-700">
+          <div className={`mb-3 flex items-center justify-center gap-2 ${isDark ? "text-white" : "text-violet-700"}`}>
             <Database className="h-4 w-4" />
             <p className="text-sm font-semibold">Enter Your Database URL</p>
           </div>
