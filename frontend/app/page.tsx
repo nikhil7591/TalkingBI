@@ -52,7 +52,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className={`mt-8 max-w-2xl overflow-hidden rounded-2xl border shadow-sm ${isDark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white"}`}>
+          <div className="mt-8 max-w-2xl overflow-hidden rounded-2xl">
             <img
               src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80"
               alt="Business analytics dashboard mood board"
@@ -67,7 +67,7 @@ export default function HomePage() {
           transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
           className="min-h-[420px] h-full"
         >
-          <Card className={`relative h-full w-full overflow-hidden rounded-[32px] border shadow-[0_36px_90px_rgba(15,23,42,0.16)] ${isDark ? "border-slate-700 bg-slate-900" : "border-slate-300 bg-white"}`}>
+          <div className={`relative h-full w-full overflow-hidden rounded-[32px] ${isDark ? "bg-slate-950" : "bg-white"}`}>
             <Spotlight className="z-10" size={420} />
             <div className="relative z-20 h-full w-full">
               <SplineScene
@@ -75,7 +75,7 @@ export default function HomePage() {
                 className="h-full w-full"
               />
             </div>
-          </Card>
+          </div>
         </motion.div>
       </section>
     </main>

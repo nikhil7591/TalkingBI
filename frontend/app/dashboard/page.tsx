@@ -9,6 +9,7 @@ import { signOut, useSession } from "next-auth/react";
 import DatasetUrlInput from "@/components/DatasetUrlInput";
 import DashboardPreviewGallery from "@/components/DashboardPreviewGallery";
 import KpiInput from "@/components/KpiInput";
+import CreditsResetTimer from "@/components/CreditsResetTimer";
 import { NavBar } from "@/components/ui/tubelight-navbar";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import DisplayCards from "@/components/ui/display-cards";
@@ -722,9 +723,12 @@ export default function DashboardPage() {
       </div>
 
       {creditInfo ? (
-        <div className="fixed left-4 top-3 z-50 md:left-8 md:top-4">
-          <div className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-lg">
-            Credits: {creditInfo.remaining}/{creditInfo.limit}
+        <div className="fixed left-4 top-3 z-50 md:left-8 md:top-4 flex flex-col gap-1.5">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-lg">
+            <span>Credits: {creditInfo.remaining}/{creditInfo.limit}</span>
+          </div>
+          <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 shadow-lg">
+            <CreditsResetTimer />
           </div>
         </div>
       ) : null}

@@ -82,25 +82,22 @@ export function Pricing({
         <div
           ref={toggleRef}
           className={cn(
-            "relative inline-flex items-center gap-1 rounded-full border p-1 shadow-sm",
+            "relative inline-flex items-center gap-0 rounded-full border p-1 shadow-sm",
             darkMode ? "border-slate-500 bg-slate-800/95" : "border-slate-300 bg-white"
           )}
         >
-          <motion.span
-            className={cn(
-              "absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-full",
-              darkMode ? "bg-slate-700" : "bg-slate-100"
-            )}
-            animate={{ x: isMonthly ? 0 : "100%" }}
-            transition={{ type: "spring", stiffness: 360, damping: 30 }}
-          />
-
           <button
             type="button"
             onClick={() => setBilling(true)}
             className={cn(
-              "relative z-10 rounded-full px-5 py-2 text-sm font-semibold transition",
-              isMonthly ? (darkMode ? "text-white" : "text-slate-900") : darkMode ? "text-slate-400" : "text-slate-500"
+              "relative z-10 w-24 rounded-full py-2.5 text-sm font-semibold transition",
+              isMonthly
+                ? darkMode
+                  ? "bg-slate-700 text-white shadow-md"
+                  : "bg-slate-100 text-slate-900 shadow-md"
+                : darkMode
+                ? "text-slate-400 hover:text-slate-300"
+                : "text-slate-600 hover:text-slate-700"
             )}
           >
             Monthly
@@ -109,13 +106,19 @@ export function Pricing({
             type="button"
             onClick={() => setBilling(false)}
             className={cn(
-              "relative z-10 rounded-full px-5 py-2 text-sm font-semibold transition",
-              !isMonthly ? (darkMode ? "text-white" : "text-slate-900") : darkMode ? "text-slate-400" : "text-slate-500"
+              "relative z-10 w-24 rounded-full py-2.5 text-sm font-semibold transition",
+              !isMonthly
+                ? darkMode
+                  ? "bg-slate-700 text-white shadow-md"
+                  : "bg-slate-100 text-slate-900 shadow-md"
+                : darkMode
+                ? "text-slate-400 hover:text-slate-300"
+                : "text-slate-600 hover:text-slate-700"
             )}
           >
             Annual
           </button>
-          <span className="ml-1 mr-2 text-xs font-semibold text-blue-500">{annualDiscountLabel}</span>
+          <span className="absolute -right-32 top-1/2 whitespace-nowrap -translate-y-1/2 text-xs font-semibold text-blue-500">{annualDiscountLabel}</span>
         </div>
       </div>
 
