@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { PromptInputBox } from "@/components/ui/ai-prompt-box";
-import { askBiChat } from "@/lib/api";
+import { askBiChat, consumeCredits } from "@/lib/api";
 import { ChatMessage, DashboardSpec } from "@/lib/types";
 
 type Props = {
@@ -11,10 +11,12 @@ type Props = {
   dashboardContext: DashboardSpec | null;
   suggestions?: string[];
   userId?: string;
+  userEmail?: string;
+  onCreditsUpdate?: (credits: { remaining: number; limit: number }) => void;
   onHistoryEntry?: (entry: { id: string; title: string; preview: string; createdAt: string; messages: ChatMessage[] }) => void;
 };
 
-export default function BIChatbot({ kpi, dashboardContext, suggestions = [], userId, onHistoryEntry }: Props) {
+export default function BIChatbot({ kpi, dashboardContext, suggestions = [], userId, userEmail, onCreditsUpdate, onHistoryEntry }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -58,8 +60,18 @@ export default function BIChatbot({ kpi, dashboardContext, suggestions = [], use
         role: "assistant",
         content: cleanedAnswer,
       };
+
       const fullMessages: ChatMessage[] = [...pendingMessages, assistantMessage];
       setMessages(fullMessages);
+
+      if (userId) {
+        try {
+          const credit = await consumeCredits({ userId, userEmail, eventType: "BI_CHAT_QUERY" });
+          onCreditsUpdate?.({ remaining: credit.tokensRemaining, limit: credit.dailyLimit });
+        } catch {
+          // Keep chat response visible even if credit API is temporarily unavailable.
+        }
+      }
 
       const preview = message.trim().replace(/\s+/g, " ").slice(0, 90);
       onHistoryEntry?.({

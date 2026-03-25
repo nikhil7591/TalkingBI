@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-type EventType = "KPI_QUERY";
+type EventType = "KPI_QUERY" | "DASHBOARD_GENERATION" | "BI_CHAT_QUERY";
 
 const DAILY_CREDITS: Record<string, number> = {
   free: 30,
@@ -14,6 +14,14 @@ const DAILY_CREDITS: Record<string, number> = {
 
 const EVENT_COST: Record<EventType, number> = {
   KPI_QUERY: 5,
+  DASHBOARD_GENERATION: 5,
+  BI_CHAT_QUERY: 2,
+};
+
+const EVENT_METRIC: Record<EventType, "KPI_QUERY" | "DASHBOARD_GENERATION" | "BI_CHAT_QUERY"> = {
+  KPI_QUERY: "KPI_QUERY",
+  DASHBOARD_GENERATION: "DASHBOARD_GENERATION",
+  BI_CHAT_QUERY: "BI_CHAT_QUERY",
 };
 
 function startOfUtcDay(date: Date): Date {
@@ -31,7 +39,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    const cost = EVENT_COST[eventType];
+    const cost = EVENT_COST[eventType] ?? EVENT_COST.KPI_QUERY;
+    const metric = EVENT_METRIC[eventType] ?? EVENT_METRIC.KPI_QUERY;
     const now = new Date();
     const today = startOfUtcDay(now);
     const tomorrow = new Date(today);
@@ -40,7 +49,7 @@ export async function POST(req: Request) {
     let result;
     try {
       result = await prisma.$transaction(async (tx) => {
-        const user = await tx.user.findUnique({
+        let user = await tx.user.findUnique({
           where: { id: userId },
           select: {
             id: true,
@@ -54,9 +63,46 @@ export async function POST(req: Request) {
           },
         });
 
+        if (!user && userEmail) {
+          user = await tx.user.findUnique({
+            where: { email: userEmail },
+            select: {
+              id: true,
+              email: true,
+              subscriptions: {
+                where: { status: "active" },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { plan: true },
+              },
+            },
+          });
+        }
+
+        if (!user && userEmail) {
+          user = await tx.user.create({
+            data: {
+              email: userEmail,
+              name: userEmail.split("@")[0] || "User",
+            },
+            select: {
+              id: true,
+              email: true,
+              subscriptions: {
+                where: { status: "active" },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { plan: true },
+              },
+            },
+          });
+        }
+
         if (!user) {
           throw new Error("User not found");
         }
+
+        const trackedUserId = user.id;
 
         const isAdmin = (user.email || "").toLowerCase() === "admin@gmail.com";
         const plan = (user.subscriptions[0]?.plan || "FREE").toLowerCase();
@@ -65,8 +111,7 @@ export async function POST(req: Request) {
 
         const usedAgg = await tx.usageEvent.aggregate({
           where: {
-            userId,
-            metric: "KPI_QUERY",
+            userId: trackedUserId,
             createdAt: { gte: today, lt: tomorrow },
           },
           _sum: { value: true },
@@ -87,8 +132,8 @@ export async function POST(req: Request) {
 
         await tx.usageEvent.create({
           data: {
-            userId,
-            metric: "KPI_QUERY",
+            userId: trackedUserId,
+            metric,
             value: cost,
           },
         });

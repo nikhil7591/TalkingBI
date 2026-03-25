@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 
 import BIChatbot from "@/components/BIChatbot";
+import DashboardRenderer from "@/components/DashboardRenderer";
+import { getCreditsStatus } from "@/lib/api";
 import { DashboardSpec } from "@/lib/types";
 
 type ChatFlowState = {
@@ -27,6 +29,8 @@ export default function DashboardChatPage() {
   const { data: session } = useSession();
   const [flowState, setFlowState] = useState<ChatFlowState | null>(null);
   const [selectedIdFromQuery, setSelectedIdFromQuery] = useState<string | undefined>(undefined);
+  const [creditInfo, setCreditInfo] = useState<{ remaining: number; limit: number } | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -55,6 +59,37 @@ export default function DashboardChatPage() {
     return flowState.dashboards.find((d) => d.id === selectedId) || flowState.dashboards[0];
   }, [flowState, selectedIdFromQuery]);
 
+  const relatedQueries = useMemo(() => {
+    if (!selectedDashboard) {
+      return RELATED_QUERIES;
+    }
+    const chartTitles = selectedDashboard.charts.slice(0, 3).map((c) => c.title).filter(Boolean);
+    const dynamic = [
+      `What changed most in ${selectedDashboard.title}?`,
+      `Give decision summary for ${selectedDashboard.title}.`,
+      chartTitles[0] ? `Drill into ${chartTitles[0]} with exact numbers.` : "Drill into the strongest chart with exact numbers.",
+      chartTitles[1] ? `Compare ${chartTitles[1]} with previous period.` : "Compare this dashboard with previous period.",
+      chartTitles[2] ? `What action should I take based on ${chartTitles[2]}?` : "What action should I take based on this dashboard?",
+    ];
+    return dynamic;
+  }, [selectedDashboard]);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!session?.user?.id) {
+        setCreditInfo(null);
+        return;
+      }
+      try {
+        const credit = await getCreditsStatus({ userId: session.user.id, userEmail: session.user.email || undefined });
+        setCreditInfo({ remaining: credit.tokensRemaining, limit: credit.dailyLimit });
+      } catch {
+        // Keep chat working even if credits status endpoint fails.
+      }
+    };
+    void fetchCredits();
+  }, [session?.user?.id, session?.user?.email]);
+
   if (!flowState?.dashboards?.length || !selectedDashboard) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 py-10">
@@ -71,6 +106,12 @@ export default function DashboardChatPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 md:px-6">
+      {creditInfo ? (
+        <div className="mb-3 inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-800 shadow-sm">
+          Credits: {creditInfo.remaining}/{creditInfo.limit}
+        </div>
+      ) : null}
+
       <div className="mb-4 flex items-center justify-between">
         <Link href="/dashboard" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800">
           Back to Dashboard Selection
@@ -87,12 +128,43 @@ export default function DashboardChatPage() {
         <div className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Selected Dashboard Context</div>
         <h2 className="mt-1 text-2xl font-bold text-slate-900">{selectedDashboard.title}</h2>
         <p className="mt-2 line-clamp-2 text-sm text-slate-700">{selectedDashboard.insightText || "Chatbot will answer based on this dashboard charts and KPI cards."}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {flowState.dashboards.map((dash) => {
+            const isActive = dash.id === selectedDashboard.id;
+            return (
+              <button
+                key={dash.id}
+                type="button"
+                onClick={() => setSelectedIdFromQuery(dash.id)}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${isActive ? "border-cyan-500 bg-cyan-100 text-cyan-800" : "border-slate-300 bg-white text-slate-700"}`}
+              >
+                {dash.title}
+              </button>
+            );
+          })}
+        </div>
       </motion.section>
+
+      <section className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_34px_rgba(15,23,42,0.09)]">
+        <button
+          type="button"
+          onClick={() => setShowPreview((prev) => !prev)}
+          className="flex w-full items-center justify-between border-b border-slate-200 px-4 py-3 text-left"
+        >
+          <span className="text-sm font-semibold text-slate-800">Selected Dashboard Preview</span>
+          <span className="text-xs font-semibold text-slate-600">{showPreview ? "Hide" : "Show"}</span>
+        </button>
+        {showPreview ? (
+          <div className="max-h-[520px] overflow-auto p-3">
+            <DashboardRenderer dashboard={selectedDashboard} />
+          </div>
+        ) : null}
+      </section>
 
       <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Related Multi Queries</div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {RELATED_QUERIES.map((q, idx) => (
+          {relatedQueries.map((q, idx) => (
             <motion.span
               key={q}
               initial={{ opacity: 0, y: 10 }}
@@ -109,8 +181,10 @@ export default function DashboardChatPage() {
       <BIChatbot
         kpi={flowState.currentKpi || "Business KPI"}
         dashboardContext={selectedDashboard}
-        suggestions={RELATED_QUERIES}
+        suggestions={relatedQueries}
         userId={session?.user?.id || undefined}
+        userEmail={session?.user?.email || undefined}
+        onCreditsUpdate={(credits) => setCreditInfo(credits)}
       />
     </main>
   );

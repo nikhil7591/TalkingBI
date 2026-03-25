@@ -55,18 +55,47 @@ def _is_db_url(url: str) -> bool:
 
 
 def _load_from_sql_database(db_url: str) -> pd.DataFrame:
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, pool_pre_ping=True, future=True)
     inspector = inspect(engine)
-    tables = inspector.get_table_names()
-    if not tables:
+
+    table_refs: list[tuple[str | None, str]] = []
+    for schema in [None, "public"]:
+        try:
+            tables = inspector.get_table_names(schema=schema)
+        except Exception:
+            tables = []
+        for table in tables:
+            table_refs.append((schema, table))
+
+    deduped: list[tuple[str | None, str]] = []
+    seen: set[str] = set()
+    for schema, table in table_refs:
+        key = f"{schema or ''}.{table}"
+        if key not in seen:
+            deduped.append((schema, table))
+            seen.add(key)
+
+    if not deduped:
         raise HTTPException(status_code=400, detail="No tables found in SQL database URL.")
-    first_table = tables[0]
-    query = f'SELECT * FROM "{first_table}" LIMIT 10000'
-    try:
-        return pd.read_sql_query(query, engine)
-    except Exception:
-        query = f"SELECT * FROM {first_table} LIMIT 10000"
-        return pd.read_sql_query(query, engine)
+
+    # Prefer user-like tables first.
+    deduped.sort(key=lambda item: (item[1].startswith("_") or item[1].startswith("pg_"), item[1]))
+    schema, first_table = deduped[0]
+    quoted_table = f'"{first_table}"'
+    if schema:
+        quoted_table = f'"{schema}".{quoted_table}'
+
+    for query in [
+        f"SELECT * FROM {quoted_table} LIMIT 10000",
+        f'SELECT * FROM "{first_table}" LIMIT 10000',
+        f"SELECT * FROM {first_table} LIMIT 10000",
+    ]:
+        try:
+            return pd.read_sql_query(query, engine)
+        except Exception:
+            continue
+
+    raise HTTPException(status_code=400, detail=f"Could not read table '{first_table}' from SQL database URL.")
 
 
 def _load_from_mongo_database(db_url: str) -> pd.DataFrame:
@@ -146,7 +175,9 @@ async def ingest_dataset(payload: DatasetIngestRequest) -> dict[str, Any]:
 
     numeric_columns = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
     if not numeric_columns:
-        raise HTTPException(status_code=400, detail="Dataset must have at least 1 numeric column.")
+        # Keep ingestion resilient for text-heavy sources by adding a numeric helper column.
+        df = df.copy()
+        df["_row_index"] = range(1, len(df) + 1)
 
     records = _json_safe_rows(df.to_dict(orient="records"))
     columns = dynamic_dataset_service.infer_columns(df)

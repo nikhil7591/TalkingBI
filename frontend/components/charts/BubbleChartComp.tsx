@@ -12,7 +12,7 @@ export default function BubbleChartComp({ chart, theme }: Props) {
   const xField = chart.xAxis?.field ?? keys[0] ?? "x";
   const yField = chart.yAxis?.field ?? keys[1] ?? "y";
   const sizeField = keys[2] ?? yField;
-  const color = chart.colors?.[0] || theme?.primaryColor || "#2563eb";
+  const palette = chart.colors?.length ? chart.colors : theme?.chartColors?.length ? theme.chartColors : [theme?.primaryColor || "#2563eb", theme?.accentColor || "#22d3ee"];
   const subTextColor = theme?.subTextColor || "#94a3b8";
 
   const option = {
@@ -25,7 +25,10 @@ export default function BubbleChartComp({ chart, theme }: Props) {
         type: "scatter",
         data: rows.map((r) => [Number(r[xField] ?? 0), Number(r[yField] ?? 0), Number(r[sizeField] ?? 10)]),
         symbolSize: (v: number[]) => Math.max(8, Math.min(40, Number(v[2] ?? 10))),
-        itemStyle: { color },
+        itemStyle: {
+          color: (params: { dataIndex: number }) => palette[params.dataIndex % palette.length],
+          opacity: 0.92,
+        },
       },
     ],
   };

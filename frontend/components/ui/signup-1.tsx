@@ -49,12 +49,22 @@ export default function SignupOne({ mode = "signup" }: AuthCardProps) {
     setError("");
     setLoading(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
+    const normalizedName = name.trim();
+
+    if (!normalizedEmail || !normalizedPassword || (isSignup && !normalizedName)) {
+      setError("Please fill all required fields.");
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isSignup) {
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name: normalizedName, email: normalizedEmail, password: normalizedPassword }),
         });
 
         if (!res.ok) {
@@ -66,12 +76,12 @@ export default function SignupOne({ mode = "signup" }: AuthCardProps) {
       }
 
       const signRes = await signIn("credentials", {
-        email,
-        password,
+        email: normalizedEmail,
+        password: normalizedPassword,
         redirect: false,
       });
 
-      if (signRes?.error) {
+      if (!signRes || signRes.error || signRes.status === 401 || signRes.ok === false) {
         setError("Invalid email or password.");
         setLoading(false);
         return;

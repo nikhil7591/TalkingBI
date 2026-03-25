@@ -12,7 +12,7 @@ export default function ScatterComp({ chart, theme }: Props) {
   const xField = chart.xAxis?.field ?? keys[0] ?? "x";
   const yField = chart.yAxis?.field ?? keys[1] ?? "y";
   const sizeField = keys[2];
-  const primaryColor = chart.colors?.[0] || theme?.primaryColor || "#2563eb";
+  const palette = chart.colors?.length ? chart.colors : theme?.chartColors?.length ? theme.chartColors : [theme?.primaryColor || "#2563eb", theme?.accentColor || "#22d3ee"];
   const subTextColor = theme?.subTextColor || "#94a3b8";
 
   const option = {
@@ -23,7 +23,10 @@ export default function ScatterComp({ chart, theme }: Props) {
     series: [
       {
         type: "scatter",
-        itemStyle: { color: primaryColor },
+        itemStyle: {
+          color: (params: { dataIndex: number }) => palette[params.dataIndex % palette.length],
+          opacity: 0.9,
+        },
         data: data.map((d) => [
           Number(d[xField] ?? 0),
           Number(d[yField] ?? 0),

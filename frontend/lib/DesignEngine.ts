@@ -43,24 +43,44 @@ type LayoutConfig = {
 type ChartSlot = {
   slot: number;
   recommended_type: string;
+  section_title?: string;
+  business_question?: string;
   reason?: string;
   x_field?: string;
   y_field?: string;
   group_field?: string | null;
+  data_pattern?: string;
+  aggregation?: string;
+  number_format?: string;
+  title?: string;
+  subtitle?: string;
   data?: Array<Record<string, unknown>>;
 };
 
 type Doc2ChartResponse = {
+  meta?: {
+    dashboard_goal?: string;
+    design_intent?: string;
+    industry_hint?: string;
+  };
   kpi_summary?: {
     total?: number;
     average?: number;
     maximum?: number;
     minimum?: number;
     count?: number;
+    growth_percent?: number;
+    variance_percent?: number;
     top_dimension_value?: string;
     top_dimension_label?: string;
   };
   chart_slots?: ChartSlot[];
+  narrative?: {
+    headline?: string;
+    risk?: string;
+    opportunity?: string;
+    recommended_action?: string;
+  };
   insight?: string;
 };
 
@@ -407,7 +427,7 @@ export function buildEChartsOption(
             barMaxWidth: 40,
             itemStyle: {
               borderRadius: [4, 4, 0, 0],
-              color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: theme.accent }, { offset: 1, color: `${theme.accent}40` }] },
+              color: theme.accent,
             },
             data: data.map((d) => numeric(d[yField])),
           },
@@ -456,7 +476,7 @@ export function buildEChartsOption(
           data: data.map((d) => numeric(d[yField])),
           lineStyle: { width: 3, color: theme.accent },
           itemStyle: { color: theme.accent, borderWidth: 2, borderColor: theme.cardBackground },
-          areaStyle: { color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: `${theme.accent}50` }, { offset: 1, color: `${theme.accent}05` }] } },
+          areaStyle: { color: theme.accent, opacity: 0.2 },
           emphasis: { itemStyle: { shadowBlur: 15, shadowColor: theme.accent } },
           markPoint: {
             data: [
@@ -494,7 +514,7 @@ function buildKpiCards(openaiResponse: Doc2ChartResponse): KpiCard[] {
     label: k.label,
     value: k.value,
     formattedValue: Number.isFinite(k.value) ? k.value.toLocaleString() : "0",
-    delta: 0,
+    delta: Number(summary.growth_percent || 0),
     deltaDirection: k.deltaDirection,
     deltaLabel: "vs previous",
     sparklineData: [],
@@ -507,7 +527,8 @@ function buildVariant(
   insightsResponse: InsightsResponse,
   theme: ThemeConfig,
   layout: LayoutConfig,
-  mode: "original" | "compact" | "alternate" | "hero"
+  mode: "original" | "compact" | "alternate" | "hero",
+  selectedChartTypes: string[]
 ): DashboardSpec {
   const slots = (openaiResponse.chart_slots || []).slice(0, 4);
   while (slots.length < 4) {
@@ -516,26 +537,45 @@ function buildVariant(
 
   const reordered = mode === "alternate" ? [...slots].reverse() : slots;
 
-  const charts = reordered.map((slot, index) => ({
-    id: `chart_${variantId}_${index + 1}`,
-    type: slot.recommended_type || "bar",
-    title: `Chart ${index + 1}`,
-    subtitle: slot.reason || "",
-    position: layout.chartPositions[index],
-    echartsOption: buildEChartsOption(
-      slot.recommended_type || "bar",
-      (slot.data || []) as Array<Record<string, unknown>>,
-      theme,
-      slot.x_field,
-      slot.y_field,
-      slot.group_field
-    ),
-    data: slot.data || [],
-  }));
+  const charts = reordered.map((slot, index) => {
+    const rotatedPalette = [
+      ...theme.palette.slice(index % theme.palette.length),
+      ...theme.palette.slice(0, index % theme.palette.length),
+    ];
+
+    return {
+      id: `chart_${variantId}_${index + 1}`,
+      type:
+        selectedChartTypes.length > 0
+          ? selectedChartTypes[((variantId - 1) * reordered.length + index) % selectedChartTypes.length]
+          : slot.recommended_type || "bar",
+      title: slot.title || slot.section_title || `Chart ${index + 1}`,
+      subtitle: [slot.subtitle, slot.business_question, slot.reason].filter(Boolean).join(" | "),
+      colors: rotatedPalette,
+      position: layout.chartPositions[index],
+      echartsOption: buildEChartsOption(
+        slot.recommended_type || "bar",
+        (slot.data || []) as Array<Record<string, unknown>>,
+        theme,
+        slot.x_field,
+        slot.y_field,
+        slot.group_field
+      ),
+      data: slot.data || [],
+    };
+  });
+
+  const narrativeHeadline = openaiResponse.narrative?.headline;
+  const metaGoal = openaiResponse.meta?.dashboard_goal;
+  const industryHint = openaiResponse.meta?.industry_hint;
 
   return {
     id: `dashboard_${variantId}`,
-    title: `Dashboard Variant ${variantId}`,
+    title: narrativeHeadline
+      ? `${narrativeHeadline} - V${variantId}`
+      : metaGoal
+      ? `${metaGoal} - ${industryHint || "business"} view V${variantId}`
+      : `Dashboard Variant ${variantId}`,
     theme: {
       background: theme.background,
       cardBackground: theme.cardBackground,
@@ -552,7 +592,11 @@ function buildVariant(
     layout: mode,
     kpiCards: buildKpiCards(openaiResponse),
     charts,
-    insightText: insightsResponse.top_insight || openaiResponse.insight || "Insight unavailable",
+    insightText:
+      insightsResponse.top_insight ||
+      openaiResponse.narrative?.recommended_action ||
+      openaiResponse.insight ||
+      "Insight unavailable",
     voiceNarration: insightsResponse.voice_narration || "",
   } as DashboardSpec;
 }
@@ -568,11 +612,12 @@ export function buildDashboards(
     accent: userPrefs.accentOverride || baseTheme.accent,
   };
   const layout = LAYOUTS[userPrefs.layout] || LAYOUTS.executive;
+  const selectedChartTypes = (userPrefs.selectedCharts || []).filter(Boolean);
 
   return [
-    buildVariant(1, openaiResponse, insightsResponse, theme, layout, "original"),
-    buildVariant(2, openaiResponse, insightsResponse, theme, LAYOUTS.compact, "compact"),
-    buildVariant(3, openaiResponse, insightsResponse, theme, layout, "alternate"),
-    buildVariant(4, openaiResponse, insightsResponse, theme, LAYOUTS.magazine, "hero"),
+    buildVariant(1, openaiResponse, insightsResponse, theme, layout, "original", selectedChartTypes),
+    buildVariant(2, openaiResponse, insightsResponse, theme, LAYOUTS.compact, "compact", selectedChartTypes),
+    buildVariant(3, openaiResponse, insightsResponse, theme, layout, "alternate", selectedChartTypes),
+    buildVariant(4, openaiResponse, insightsResponse, theme, LAYOUTS.magazine, "hero", selectedChartTypes),
   ];
 }

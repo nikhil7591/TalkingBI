@@ -11,10 +11,21 @@ export default function HeatmapComp({ chart, theme }: Props) {
   const xField = chart.xAxis?.field ?? Object.keys(data[0] ?? {})[0] ?? "x";
   const yField = chart.groupBy ?? Object.keys(data[0] ?? {})[1] ?? "y";
   const vField = chart.yAxis?.field ?? Object.keys(data[0] ?? {})[2] ?? Object.keys(data[0] ?? {})[1] ?? "value";
-  const cardBackground = theme?.cardBackground || "#0f172a";
-  const primaryColor = theme?.primaryColor || "#2563eb";
-  const accentColor = theme?.accentColor || "#22d3ee";
+  const palette = chart.colors?.length ? chart.colors : theme?.chartColors?.length ? theme.chartColors : [theme?.primaryColor || "#2563eb", theme?.accentColor || "#22d3ee", "#f59e0b"];
+  const primaryColor = palette[0] || theme?.primaryColor || "#2563eb";
+  const accentColor = palette[1] || theme?.accentColor || "#22d3ee";
+  const tertiaryColor = palette[2] || "#f59e0b";
   const subTextColor = theme?.subTextColor || "#94a3b8";
+
+  const toNumber = (value: unknown): number => {
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
+    if (typeof value === "string") {
+      const parsedTime = Date.parse(value);
+      if (Number.isFinite(parsedTime)) return parsedTime;
+    }
+    return 0;
+  };
 
   const xCats = Array.from(new Set(data.map((d) => String(d[xField] ?? ""))));
   const yCats = Array.from(new Set(data.map((d) => String(d[yField] ?? ""))));
@@ -22,8 +33,10 @@ export default function HeatmapComp({ chart, theme }: Props) {
   const points = data.map((d) => [
     xCats.indexOf(String(d[xField] ?? "")),
     yCats.indexOf(String(d[yField] ?? "")),
-    Number(d[vField] ?? 0),
+    toNumber(d[vField]),
   ]);
+
+  const maxValue = Math.max(1, ...points.map((p) => Number(p[2])));
 
   const option = {
     grid: { left: 40, right: 16, top: 16, bottom: 30, containLabel: true },
@@ -32,12 +45,12 @@ export default function HeatmapComp({ chart, theme }: Props) {
     yAxis: { type: "category", data: yCats, axisLabel: { color: subTextColor } },
     visualMap: {
       min: 0,
-      max: Math.max(...points.map((p) => Number(p[2])), 100),
+      max: maxValue,
       calculable: true,
       orient: "horizontal",
       left: "center",
       bottom: 0,
-      inRange: { color: [cardBackground, primaryColor, accentColor] },
+      inRange: { color: ["#e2e8f0", primaryColor, accentColor, tertiaryColor] },
     },
     series: [{ type: "heatmap", data: points, label: { show: false } }],
   };

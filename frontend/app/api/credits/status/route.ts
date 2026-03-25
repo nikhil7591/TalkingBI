@@ -42,6 +42,41 @@ export async function POST(req: Request) {
           },
         },
       });
+
+      if (!user && userEmail) {
+        user = await prisma.user.findUnique({
+          where: { email: userEmail },
+          select: {
+            id: true,
+            email: true,
+            subscriptions: {
+              where: { status: "active" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { plan: true },
+            },
+          },
+        });
+      }
+
+      if (!user && userEmail) {
+        user = await prisma.user.create({
+          data: {
+            email: userEmail,
+            name: userEmail.split("@")[0] || "User",
+          },
+          select: {
+            id: true,
+            email: true,
+            subscriptions: {
+              where: { status: "active" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { plan: true },
+            },
+          },
+        });
+      }
     } catch (dbError) {
       if (
         dbError instanceof Prisma.PrismaClientKnownRequestError ||
@@ -62,7 +97,16 @@ export async function POST(req: Request) {
     }
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      const isAdmin = userEmail === "admin@gmail.com";
+      const dailyLimit = isAdmin ? DAILY_LIMIT_BY_PLAN.admin : DAILY_LIMIT_BY_PLAN.free;
+      return NextResponse.json({
+        userId,
+        plan: isAdmin ? "admin" : "free",
+        dailyLimit,
+        tokensUsed: 0,
+        tokensRemaining: dailyLimit,
+        warning: "User account not yet provisioned in credits store. Showing fallback credits.",
+      });
     }
 
     const isAdmin = (user.email || "").toLowerCase() === "admin@gmail.com";
@@ -76,8 +120,7 @@ export async function POST(req: Request) {
 
     const usedToday = await prisma.usageEvent.aggregate({
       where: {
-        userId,
-        metric: "KPI_QUERY",
+        userId: user.id,
         createdAt: { gte: today, lt: tomorrow },
       },
       _sum: { value: true },
@@ -87,7 +130,7 @@ export async function POST(req: Request) {
     const tokensRemaining = Math.max(0, dailyLimit - used);
 
     return NextResponse.json({
-      userId,
+      userId: user.id,
       plan: isAdmin ? "admin" : plan,
       dailyLimit,
       tokensUsed: used,

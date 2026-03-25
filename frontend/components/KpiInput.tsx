@@ -10,6 +10,7 @@ type Props = {
   onSubmit: (kpi: string, selectedCharts: string[], selectedThemes: string[]) => void;
   loading: boolean;
   mode?: "light" | "dark";
+  isAdmin?: boolean;
 };
 
 const CHART_OPTIONS = [
@@ -70,6 +71,11 @@ function prettyName(type: string): string {
     .split("-")
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
+}
+
+function getThemeByDisplayName(name: string) {
+  const key = Object.keys(AVAILABLE_THEMES).find((k) => AVAILABLE_THEMES[k].name === name) || Object.keys(AVAILABLE_THEMES)[0];
+  return AVAILABLE_THEMES[key];
 }
 
 function chartThumbnail(type: string): ReactNode {
@@ -161,13 +167,15 @@ declare global {
   }
 }
 
-export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
+export default function KpiInput({ onSubmit, loading, mode = "light", isAdmin = false }: Props) {
   const isDark = mode === "dark";
   const [value, setValue] = useState("");
   const [listening, setListening] = useState(false);
   const [dotCount, setDotCount] = useState(0);
   const [selectedCharts, setSelectedCharts] = useState<string[]>(DEFAULT_SELECTED);
   const [selectedThemes, setSelectedThemes] = useState<string[]>([
+    DEFAULT_THEME.name,
+    DEFAULT_THEME.name,
     DEFAULT_THEME.name,
     DEFAULT_THEME.name,
     DEFAULT_THEME.name,
@@ -242,7 +250,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
   };
 
   const toggleChart = (type: string) => {
-    if (PAID_CHARTS.has(type)) {
+    if (PAID_CHARTS.has(type) && !isAdmin) {
       setShowPaidPopup(true);
       return;
     }
@@ -256,11 +264,13 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
 
   const quickSelect = (mode: "all" | "clear") => {
     if (mode === "all") {
-      setSelectedCharts(CHART_OPTIONS.filter((chart) => !PAID_CHARTS.has(chart)));
+      setSelectedCharts(isAdmin ? CHART_OPTIONS : CHART_OPTIONS.filter((chart) => !PAID_CHARTS.has(chart)));
       return;
     }
     setSelectedCharts([]);
   };
+
+  const editableThemeSlots = isAdmin ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 3];
 
   return (
     <form onSubmit={submit} className={`w-full rounded-3xl border p-4 shadow-[0_16px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm md:p-6 ${isDark ? "border-slate-700 bg-slate-900/85" : "border-slate-200 bg-white/85"}`}>
@@ -345,7 +355,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
                     background: active ? (isDark ? "#0f172a" : "#f8fafc") : isDark ? "#111827" : "#ffffff",
                   }}
                 >
-                  {isPaid && (
+                  {isPaid && !isAdmin && (
                     <span className="absolute right-1 top-1 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
                       PAID
                     </span>
@@ -370,8 +380,12 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
         <div className={`col-span-2 rounded-xl border p-3 ${isDark ? "border-slate-700 bg-slate-900/65" : "border-slate-200"}`}>
           <p className={`mb-3 text-sm font-semibold ${isDark ? "text-white" : "text-slate-700"}`}>Select theme for each dashboard</p>
           <div className="space-y-2 overflow-y-auto max-h-80">
-            {[0, 1, 2, 3].map((dashIdx) => (
+            {editableThemeSlots.map((dashIdx) => (
               <div key={dashIdx} className={`rounded-lg border p-2 ${isDark ? "border-slate-600" : "border-slate-300"}`}>
+                {(() => {
+                  const selectedTheme = getThemeByDisplayName(selectedThemes[dashIdx]);
+                  return (
+                    <>
                 <label className={`mb-1 block text-xs font-semibold ${isDark ? "text-slate-200" : "text-slate-600"}`}>
                   Dashboard {dashIdx + 1}
                 </label>
@@ -391,38 +405,69 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
                   ))}
                 </select>
 
-                {/* Theme Color Preview */}
-                <div className={`rounded border p-1 ${isDark ? "border-slate-600" : "border-slate-200"}`}>
-                  <div className="mb-1 flex flex-wrap gap-1">
-                    {AVAILABLE_THEMES[Object.keys(AVAILABLE_THEMES).find((k) => AVAILABLE_THEMES[k].name === selectedThemes[dashIdx]) || Object.keys(AVAILABLE_THEMES)[0]].chartColors.slice(0, 5).map((color, idx) => (
+                <div
+                  className={`relative overflow-hidden rounded border p-2 ${isDark ? "border-slate-600" : "border-slate-200"}`}
+                  style={{
+                    background: selectedTheme.surfaceGradient || selectedTheme.background,
+                    boxShadow: selectedTheme.cardShadow,
+                  }}
+                >
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background: selectedTheme.heroGlow || "none",
+                      opacity: 0.85,
+                    }}
+                  />
+                  <div className="relative z-10 mb-2 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: selectedTheme.headingColor || selectedTheme.textColor }}>
+                      {selectedTheme.name}
+                    </span>
+                    {selectedTheme.animatedAccent ? (
+                      <span className="rounded-full bg-black/30 px-1.5 py-0.5 text-[9px] font-semibold text-white">Live</span>
+                    ) : null}
+                  </div>
+                  <div className="relative z-10 mb-2 flex h-8 items-end gap-1 rounded-md border border-white/20 p-1" style={{ background: selectedTheme.cardGlass || selectedTheme.cardBackground }}>
+                    {selectedTheme.chartColors.slice(0, 5).map((color, idx) => (
                       <div
                         key={idx}
-                        className={`h-3 w-3 rounded border ${isDark ? "border-slate-500" : "border-slate-300"}`}
-                        style={{ background: color }}
-                        title={color}
+                        className="h-full flex-1 rounded-sm"
+                        style={{
+                          background: color,
+                          opacity: 0.95,
+                          transform: `scaleY(${0.45 + idx * 0.12})`,
+                          transformOrigin: "bottom",
+                        }}
                       />
                     ))}
                   </div>
-                  <div className={`text-[9px] ${isDark ? "text-slate-300" : "text-slate-500"}`}>Font: {AVAILABLE_THEMES[Object.keys(AVAILABLE_THEMES).find((k) => AVAILABLE_THEMES[k].name === selectedThemes[dashIdx]) || Object.keys(AVAILABLE_THEMES)[0]].textColor}</div>
+                  <div className="relative z-10 text-[10px]" style={{ color: selectedTheme.subheadingColor || selectedTheme.subTextColor }}>
+                    {selectedTheme.animatedAccent ? "Glossy animated surface + vibrant chart palette" : "Professional color balance for business readability"}
+                  </div>
                 </div>
+                    </>
+                  );
+                })()}
               </div>
             ))}
 
-            {LOCKED_THEME_SLOTS.map((slot) => (
-              <button
-                key={slot.title}
-                type="button"
-                onClick={() => setShowPaidPopup(true)}
-                className="w-full rounded-lg border border-amber-300 bg-amber-50/70 p-3 text-left transition hover:bg-amber-100/70"
-              >
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-amber-800">{slot.title}</p>
-                  <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">LOCKED</span>
-                </div>
-                <p className="text-xs text-amber-700">{slot.subtitle}</p>
-                <p className="mt-2 text-[11px] text-amber-700">Upgrade to choose custom premium themes for this dashboard.</p>
-              </button>
-            ))}
+            {!isAdmin
+              ? LOCKED_THEME_SLOTS.map((slot) => (
+                  <button
+                    key={slot.title}
+                    type="button"
+                    onClick={() => setShowPaidPopup(true)}
+                    className="w-full rounded-lg border border-amber-300 bg-amber-50/70 p-3 text-left transition hover:bg-amber-100/70"
+                  >
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs font-semibold text-amber-800">{slot.title}</p>
+                      <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">LOCKED</span>
+                    </div>
+                    <p className="text-xs text-amber-700">{slot.subtitle}</p>
+                    <p className="mt-2 text-[11px] text-amber-700">Upgrade to choose custom premium themes for this dashboard.</p>
+                  </button>
+                ))
+              : null}
           </div>
         </div>
       </div>

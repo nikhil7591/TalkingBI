@@ -37,6 +37,7 @@ def _records_to_json_safe(records: list[dict[str, Any]]) -> list[dict[str, Any]]
 class DynamicDatasetService:
     def __init__(self) -> None:
         self._engine: Engine | None = None
+        self._memory_store: dict[str, dict[str, Any]] = {}
 
     def _get_engine(self) -> Engine:
         if self._engine is not None:
@@ -62,7 +63,10 @@ class DynamicDatasetService:
             else:
                 # Lightweight date detection for object columns.
                 if isinstance(col, str) and any(token in col.lower() for token in ["date", "time", "month", "year"]):
-                    parsed = pd.to_datetime(series, errors="coerce")
+                    try:
+                        parsed = pd.to_datetime(series, errors="coerce", format="mixed")
+                    except TypeError:
+                        parsed = pd.to_datetime(series, errors="coerce")
                     if parsed.notna().mean() > 0.8:
                         dtype = "date"
             columns.append({"name": str(col), "dtype": dtype})
@@ -77,56 +81,76 @@ class DynamicDatasetService:
         records: list[dict[str, Any]],
         columns: list[dict[str, str]],
     ) -> dict[str, Any]:
-        engine = self._get_engine()
-
         expires_at = datetime.now(timezone.utc) + timedelta(hours=2)
         dataset_id = uuid.uuid4().hex
         table_name = f"session_{session_id[:24]}"
         safe_records = _records_to_json_safe(records)
+        memory_payload = {
+            "id": dataset_id,
+            "userId": user_id,
+            "sessionId": session_id,
+            "tableName": table_name,
+            "rawData": safe_records,
+            "columns": columns,
+            "rowCount": len(safe_records),
+            "sourceUrl": source_url,
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "expiresAt": expires_at.isoformat(),
+        }
 
-        with engine.begin() as conn:
-            # Ensure user exists because DynamicDataset has a required relation.
-            user_exists = conn.execute(
-                text('SELECT 1 FROM "User" WHERE "id" = :user_id LIMIT 1'),
-                {"user_id": user_id},
-            ).scalar()
-            if not user_exists:
+        try:
+            engine = self._get_engine()
+        except RuntimeError:
+            self._memory_store[f"{user_id}:{session_id}"] = memory_payload
+            return memory_payload
+
+        try:
+            with engine.begin() as conn:
+                # Ensure user exists because DynamicDataset has a required relation.
+                user_exists = conn.execute(
+                    text('SELECT 1 FROM "User" WHERE "id" = :user_id LIMIT 1'),
+                    {"user_id": user_id},
+                ).scalar()
+                if not user_exists:
+                    conn.execute(
+                        text(
+                            'INSERT INTO "User" ("id", "email", "createdAt", "updatedAt") '
+                            'VALUES (:id, :email, NOW(), NOW()) '
+                            'ON CONFLICT ("id") DO NOTHING'
+                        ),
+                        {
+                            "id": user_id,
+                            "email": f"temp_{user_id}@talkingbi.local",
+                        },
+                    )
+
                 conn.execute(
-                    text(
-                        'INSERT INTO "User" ("id", "email", "createdAt", "updatedAt") '
-                        'VALUES (:id, :email, NOW(), NOW()) '
-                        'ON CONFLICT ("id") DO NOTHING'
-                    ),
-                    {
-                        "id": user_id,
-                        "email": f"temp_{user_id}@talkingbi.local",
-                    },
+                    text('DELETE FROM "DynamicDataset" WHERE "sessionId" = :session_id AND "userId" = :user_id'),
+                    {"session_id": session_id, "user_id": user_id},
                 )
 
-            conn.execute(
-                text('DELETE FROM "DynamicDataset" WHERE "sessionId" = :session_id AND "userId" = :user_id'),
-                {"session_id": session_id, "user_id": user_id},
-            )
-
-            created = conn.execute(
-                text(
-                    'INSERT INTO "DynamicDataset" '
-                    '("id", "userId", "sessionId", "tableName", "rawData", "columns", "rowCount", "sourceUrl", "createdAt", "expiresAt") '
-                    'VALUES (:id, :user_id, :session_id, :table_name, CAST(:raw_data AS jsonb), CAST(:columns AS jsonb), :row_count, :source_url, NOW(), :expires_at) '
-                    'RETURNING "id", "sessionId", "rowCount", "columns", "rawData"'
-                ),
-                {
-                    "id": dataset_id,
-                    "user_id": user_id,
-                    "session_id": session_id,
-                    "table_name": table_name,
-                    "raw_data": json.dumps(safe_records, ensure_ascii=True),
-                    "columns": json.dumps(columns, ensure_ascii=True),
-                    "row_count": len(safe_records),
-                    "source_url": source_url,
-                    "expires_at": expires_at,
-                },
-            ).mappings().first()
+                created = conn.execute(
+                    text(
+                        'INSERT INTO "DynamicDataset" '
+                        '("id", "userId", "sessionId", "tableName", "rawData", "columns", "rowCount", "sourceUrl", "createdAt", "expiresAt") '
+                        'VALUES (:id, :user_id, :session_id, :table_name, CAST(:raw_data AS jsonb), CAST(:columns AS jsonb), :row_count, :source_url, NOW(), :expires_at) '
+                        'RETURNING "id", "sessionId", "rowCount", "columns", "rawData"'
+                    ),
+                    {
+                        "id": dataset_id,
+                        "user_id": user_id,
+                        "session_id": session_id,
+                        "table_name": table_name,
+                        "raw_data": json.dumps(safe_records, ensure_ascii=True),
+                        "columns": json.dumps(columns, ensure_ascii=True),
+                        "row_count": len(safe_records),
+                        "source_url": source_url,
+                        "expires_at": expires_at,
+                    },
+                ).mappings().first()
+        except Exception:
+            self._memory_store[f"{user_id}:{session_id}"] = memory_payload
+            return memory_payload
 
         if not created:
             raise RuntimeError("Failed to save dynamic dataset.")
@@ -134,7 +158,15 @@ class DynamicDatasetService:
         return dict(created)
 
     def get_dataset_for_session(self, session_id: str, user_id: str | None = None) -> dict[str, Any] | None:
-        engine = self._get_engine()
+        try:
+            engine = self._get_engine()
+        except RuntimeError:
+            if user_id:
+                return self._memory_store.get(f"{user_id}:{session_id}")
+            for key, value in self._memory_store.items():
+                if key.endswith(f":{session_id}"):
+                    return value
+            return None
 
         query = (
             'SELECT "id", "userId", "sessionId", "tableName", "rawData", "columns", "rowCount", "sourceUrl", "createdAt", "expiresAt" '
@@ -160,7 +192,17 @@ class DynamicDatasetService:
         return data
 
     def cleanup_session(self, session_id: str) -> int:
-        engine = self._get_engine()
+        deleted_memory = 0
+        for key in list(self._memory_store.keys()):
+            if key.endswith(f":{session_id}"):
+                self._memory_store.pop(key, None)
+                deleted_memory += 1
+
+        try:
+            engine = self._get_engine()
+        except RuntimeError:
+            return deleted_memory
+
         with engine.begin() as conn:
             by_session = conn.execute(
                 text('DELETE FROM "DynamicDataset" WHERE "sessionId" = :session_id'),
@@ -169,7 +211,7 @@ class DynamicDatasetService:
             expired = conn.execute(
                 text('DELETE FROM "DynamicDataset" WHERE "expiresAt" < NOW()')
             ).rowcount or 0
-        return int(by_session + expired)
+        return int(by_session + expired + deleted_memory)
 
 
 dynamic_dataset_service = DynamicDatasetService()
