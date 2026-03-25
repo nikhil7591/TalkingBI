@@ -16,6 +16,7 @@ type LangMode = "english" | "hindi" | "hinglish";
 type Props = {
   dashboards: DashboardSpec[];
   kpi: string;
+  isPaidUser?: boolean;
 };
 
 const THUMB_BASE_WIDTH = 1200;
@@ -100,7 +101,7 @@ function DashboardThumb({ dashboard, onClick, locked }: { dashboard: DashboardSp
   );
 }
 
-export default function DashboardPreviewGallery({ dashboards, kpi }: Props) {
+export default function DashboardPreviewGallery({ dashboards, kpi, isPaidUser = false }: Props) {
   const [selected, setSelected] = useState<DashboardSpec | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [viewMode, setViewMode] = useState<"dashboard" | "text">("dashboard");
@@ -114,176 +115,7 @@ export default function DashboardPreviewGallery({ dashboards, kpi }: Props) {
   const [isLoadingVoice, setIsLoadingVoice] = useState(false);
   const [showPremiumPopup, setShowPremiumPopup] = useState(false);
 
-  const base = dashboards[0];
-  const premiumDashboards: DashboardSpec[] = !base
-    ? []
-    : [
-        {
-          ...base,
-          id: "premium-1",
-          title: "Executive Fusion Premium",
-          insightText: "Premium blend of scenario and flow analysis with strategic lock-in visuals.",
-          theme: {
-            ...base.theme,
-            background: "linear-gradient(135deg,#2e1065 0%,#4c1d95 42%,#831843 100%)",
-            cardBackground: "rgba(52,21,84,0.56)",
-            textColor: "#fdf4ff",
-            subTextColor: "#e9d5ff",
-            borderColor: "rgba(244,114,182,0.42)",
-            chartColors: ["#f472b6", "#c084fc", "#fb7185", "#a78bfa", "#f9a8d4"],
-            headingColor: "#fdf4ff",
-            subheadingColor: "#fbcfe8",
-          },
-          charts: [
-            {
-              id: "premium1-combo",
-              type: "combo",
-              title: "Revenue vs Profit Momentum",
-              position: { x: 0, y: 0, w: 6, h: 2 },
-              xAxis: { field: "month" },
-              yAxis: { field: "revenue" },
-              data: [
-                { month: "Jan", revenue: 120, profit: 28 },
-                { month: "Feb", revenue: 140, profit: 32 },
-                { month: "Mar", revenue: 165, profit: 39 },
-                { month: "Apr", revenue: 182, profit: 44 },
-                { month: "May", revenue: 210, profit: 52 },
-              ],
-            },
-            {
-              id: "premium1-sankey",
-              type: "sankey",
-              title: "Channel-to-Segment Flow",
-              position: { x: 6, y: 0, w: 6, h: 2 },
-              data: [
-                { source: "Ads", target: "SMB", value: 40 },
-                { source: "Ads", target: "Enterprise", value: 22 },
-                { source: "Organic", target: "SMB", value: 30 },
-                { source: "Referral", target: "Enterprise", value: 18 },
-              ],
-            },
-            {
-              id: "premium1-sunburst",
-              type: "sunburst",
-              title: "Hierarchy Profit Share",
-              position: { x: 0, y: 2, w: 4, h: 2 },
-              data: [
-                { name: "All", value: 100 },
-                { name: "North", parent: "All", value: 42 },
-                { name: "South", parent: "All", value: 58 },
-              ],
-            },
-            {
-              id: "premium1-radar",
-              type: "radar",
-              title: "Capability Index",
-              position: { x: 4, y: 2, w: 4, h: 2 },
-              data: [
-                { metric: "Speed", value: 84 },
-                { metric: "Quality", value: 88 },
-                { metric: "Scale", value: 91 },
-                { metric: "Retention", value: 80 },
-                { metric: "NPS", value: 86 },
-              ],
-            },
-            {
-              id: "premium1-waterfall",
-              type: "waterfall",
-              title: "Margin Bridge",
-              position: { x: 8, y: 2, w: 4, h: 2 },
-              data: [
-                { step: "Base", value: 100 },
-                { step: "Price", value: 20 },
-                { step: "Discount", value: -14 },
-                { step: "Ops", value: 16 },
-                { step: "Net", value: 122 },
-              ],
-            },
-          ],
-        },
-        {
-          ...base,
-          id: "premium-2",
-          title: "AI Growth Matrix Premium",
-          insightText: "Advanced predictive and distribution charts designed for decision-makers.",
-          theme: {
-            ...base.theme,
-            background: "linear-gradient(135deg,#082f49 0%,#0f172a 40%,#164e63 100%)",
-            cardBackground: "rgba(10,43,62,0.58)",
-            textColor: "#ecfeff",
-            subTextColor: "#bae6fd",
-            borderColor: "rgba(34,211,238,0.45)",
-            chartColors: ["#22d3ee", "#38bdf8", "#0ea5e9", "#14b8a6", "#67e8f9"],
-            headingColor: "#ecfeff",
-            subheadingColor: "#a5f3fc",
-          },
-          charts: [
-            {
-              id: "premium2-bubble",
-              type: "bubble",
-              title: "Opportunity Clusters",
-              position: { x: 0, y: 0, w: 6, h: 2 },
-              xAxis: { field: "impact" },
-              yAxis: { field: "effort" },
-              data: [
-                { segment: "A", impact: 82, effort: 22, size: 42 },
-                { segment: "B", impact: 70, effort: 40, size: 32 },
-                { segment: "C", impact: 58, effort: 30, size: 26 },
-              ],
-            },
-            {
-              id: "premium2-treemap",
-              type: "treemap",
-              title: "Portfolio Value Blocks",
-              position: { x: 6, y: 0, w: 6, h: 2 },
-              data: [
-                { name: "Core", value: 44 },
-                { name: "Expansion", value: 30 },
-                { name: "Emerging", value: 26 },
-              ],
-            },
-            {
-              id: "premium2-radial",
-              type: "radial-bar",
-              title: "Utilization Gauge",
-              position: { x: 0, y: 2, w: 4, h: 2 },
-              data: [
-                { label: "Utilization", value: 86 },
-              ],
-            },
-            {
-              id: "premium2-step",
-              type: "step-line",
-              title: "Milestone Progress",
-              position: { x: 4, y: 2, w: 4, h: 2 },
-              xAxis: { field: "stage" },
-              yAxis: { field: "completion" },
-              data: [
-                { stage: "S1", completion: 20 },
-                { stage: "S2", completion: 38 },
-                { stage: "S3", completion: 57 },
-                { stage: "S4", completion: 79 },
-                { stage: "S5", completion: 92 },
-              ],
-            },
-            {
-              id: "premium2-heatmap",
-              type: "heatmap",
-              title: "Weekly Density Matrix",
-              position: { x: 8, y: 2, w: 4, h: 2 },
-              data: [
-                { day: "Mon", slot: "AM", value: 68 },
-                { day: "Tue", slot: "AM", value: 74 },
-                { day: "Wed", slot: "PM", value: 86 },
-                { day: "Thu", slot: "PM", value: 80 },
-                { day: "Fri", slot: "AM", value: 62 },
-              ],
-            },
-          ],
-        },
-      ];
-
-  const displayDashboards = [...dashboards.slice(0, 4), ...premiumDashboards];
+  const displayDashboards = dashboards;
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -348,7 +180,7 @@ export default function DashboardPreviewGallery({ dashboards, kpi }: Props) {
             dashboard={dashboard}
             locked={idx >= 4}
             onClick={() => {
-              if (idx >= 4) {
+              if (idx >= 4 && !isPaidUser) {
                 setShowPremiumPopup(true);
                 return;
               }

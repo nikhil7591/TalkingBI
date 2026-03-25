@@ -109,6 +109,7 @@ export default function DashboardPage() {
   const [datasetSessionId, setDatasetSessionId] = useState<string | null>(null);
   const [useUrlDataset, setUseUrlDataset] = useState(false);
   const [creditInfo, setCreditInfo] = useState<{ remaining: number; limit: number } | null>(null);
+  const [isPaidUser, setIsPaidUser] = useState(false);
   const [selectedDashboardForChat, setSelectedDashboardForChat] = useState<string | null>(null);
   const dashboardCacheKey = useMemo(
     () => `talkingbi_dashboard_state_${session?.user?.id || "guest"}`,
@@ -211,8 +212,9 @@ export default function DashboardPage() {
         if (!response.ok) {
           return;
         }
-        const data = (await response.json()) as { tokensRemaining?: number; dailyLimit?: number };
+        const data = (await response.json()) as { tokensRemaining?: number; dailyLimit?: number; isPaid?: boolean; plan?: string };
         setCreditInfo({ remaining: Number(data.tokensRemaining || 0), limit: Number(data.dailyLimit || 30) });
+        setIsPaidUser(Boolean(data.isPaid) || data.plan === "admin");
       } catch {
         // Silent fail for non-blocking badge.
       }
@@ -286,8 +288,9 @@ export default function DashboardPage() {
             body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
           });
           if (res.ok) {
-            const c = (await res.json()) as { tokensRemaining?: number; dailyLimit?: number };
+            const c = (await res.json()) as { tokensRemaining?: number; dailyLimit?: number; isPaid?: boolean; plan?: string };
             setCreditInfo({ remaining: Number(c.tokensRemaining || 0), limit: Number(c.dailyLimit || 30) });
+            setIsPaidUser(Boolean(c.isPaid) || c.plan === "admin");
           }
         } catch {
           // Ignore credit badge refresh failures.
@@ -302,15 +305,39 @@ export default function DashboardPage() {
     }
   };
 
+  const dashboardsForView = useMemo(() => {
+    if (!isPaidUser || dashboards.length < 2) {
+      return dashboards;
+    }
+
+    const premiumFive: DashboardSpec = {
+      ...dashboards[0],
+      id: "premium-5",
+      title: "Executive Signal Room",
+      insightText: "Premium executive synthesis with blended momentum, segment, and anomaly context.",
+    };
+
+    const premiumSix: DashboardSpec = {
+      ...dashboards[1],
+      id: "premium-6",
+      title: "Forecast Mission Control",
+      insightText: "Premium predictive board with scenario comparison and action-priority guidance.",
+    };
+
+    return [...dashboards.slice(0, 4), premiumFive, premiumSix];
+  }, [dashboards, isPaidUser]);
+
   const launchDashboardChat = () => {
-    if (!dashboards.length) {
+    if (!dashboardsForView.length) {
       return;
     }
 
-    const selectedId = selectedDashboardForChat || dashboards[0]?.id;
+    const selectedId = selectedDashboardForChat || dashboardsForView[0]?.id;
+    const selectedDashboard = dashboardsForView.find((d) => d.id === selectedId) || dashboardsForView[0];
     const payload = {
-      dashboards,
+      dashboards: dashboardsForView,
       selectedDashboardId: selectedId,
+      selectedDashboard,
       currentKpi,
       mode,
     };
@@ -468,7 +495,7 @@ export default function DashboardPage() {
 
       <section className="mt-4 rounded-3xl border border-slate-200 bg-white/70 p-4 shadow-[0_14px_50px_rgba(15,23,42,0.10)] backdrop-blur lg:p-6">
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.9fr_1fr]">
-          <KpiInput onSubmit={submitKpi} loading={loading} mode={mode} />
+          <KpiInput onSubmit={submitKpi} loading={loading} mode={mode} isPaidUser={isPaidUser} />
           <div className="hidden rounded-2xl border border-slate-200 bg-white/80 p-4 lg:block">
             <div className="mb-2 text-sm font-semibold text-slate-700">Quick Dashboard Highlights</div>
             <DisplayCards />
@@ -483,16 +510,16 @@ export default function DashboardPage() {
       <section className="mt-6 space-y-4">
         {loading && <LoadingSkeleton />}
 
-        {!loading && dashboards.length > 0 && <DashboardPreviewGallery dashboards={dashboards} kpi={currentKpi} />}
+        {!loading && dashboardsForView.length > 0 && <DashboardPreviewGallery dashboards={dashboardsForView} kpi={currentKpi} isPaidUser={isPaidUser} />}
       </section>
 
-      {!loading && dashboards.length > 0 && (
+      {!loading && dashboardsForView.length > 0 && (
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-[0_10px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm">
           <h3 className="text-lg font-bold text-slate-900">Choose Dashboard For Chat</h3>
           <p className="mt-1 text-sm text-slate-600">Select a dashboard and continue to the dedicated chat page with animated handoff.</p>
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-            {dashboards.slice(0, 4).map((dash, idx) => {
+            {dashboardsForView.map((dash, idx) => {
               const active = selectedDashboardForChat === dash.id;
               return (
                 <button
@@ -523,7 +550,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-slate-600">Selected: <span className="font-semibold text-slate-900">{dashboards.find((d) => d.id === selectedDashboardForChat)?.title || dashboards[0]?.title}</span></p>
+            <p className="text-sm text-slate-600">Selected: <span className="font-semibold text-slate-900">{dashboardsForView.find((d) => d.id === selectedDashboardForChat)?.title || dashboardsForView[0]?.title}</span></p>
             <button
               type="button"
               onClick={launchDashboardChat}

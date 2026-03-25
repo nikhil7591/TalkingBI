@@ -1,8 +1,6 @@
 "use client";
 
 import { buttonVariants } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -43,12 +41,17 @@ export function Pricing({
 }: PricingProps) {
   const [isMonthly, setIsMonthly] = useState(true);
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  const switchRef = useRef<HTMLButtonElement>(null);
+  const toggleRef = useRef<HTMLDivElement>(null);
 
-  const handleToggle = (checked: boolean) => {
-    setIsMonthly(!checked);
-    if (checked && switchRef.current) {
-      const rect = switchRef.current.getBoundingClientRect();
+  const handleToggle = (nextIsMonthly: boolean) => {
+    if (nextIsMonthly === isMonthly) {
+      return;
+    }
+
+    setIsMonthly(nextIsMonthly);
+
+    if (!nextIsMonthly && toggleRef.current) {
+      const rect = toggleRef.current.getBoundingClientRect();
       const x = rect.left + rect.width / 2;
       const y = rect.top + rect.height / 2;
 
@@ -77,19 +80,39 @@ export function Pricing({
       </div>
 
       <div className="mb-10 flex justify-center">
-        <div className={cn("inline-flex items-center gap-3 rounded-full border px-4 py-2 shadow-sm", darkMode ? "border-slate-500 bg-slate-800/95" : "border-slate-300 bg-white") }>
-          <span className={cn("text-sm font-semibold", isMonthly ? (darkMode ? "text-white" : "text-slate-900") : darkMode ? "text-slate-400" : "text-slate-500")}>Monthly</span>
-          <label className="relative inline-flex cursor-pointer items-center rounded-full border px-1 py-0.5 border-slate-400/60 bg-white/90 dark:bg-slate-700/70">
-          <Label>
-            <Switch
-              ref={switchRef as unknown as React.Ref<HTMLButtonElement>}
-              checked={!isMonthly}
-              onCheckedChange={handleToggle}
-              className="relative data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-slate-400"
-            />
-          </Label>
-          </label>
-          <span className={cn("text-sm font-semibold", !isMonthly ? (darkMode ? "text-white" : "text-slate-900") : darkMode ? "text-slate-400" : "text-slate-500")}>Annual</span>
+        <div ref={toggleRef} className={cn("inline-flex items-center gap-2 rounded-full border p-1 shadow-sm", darkMode ? "border-slate-500 bg-slate-800/95" : "border-slate-300 bg-white") }>
+          <button
+            type="button"
+            onClick={() => handleToggle(true)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-300",
+              isMonthly
+                ? darkMode
+                  ? "bg-cyan-500/25 text-white shadow"
+                  : "bg-cyan-100 text-slate-900 shadow"
+                : darkMode
+                  ? "text-slate-400"
+                  : "text-slate-500"
+            )}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggle(false)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-300",
+              !isMonthly
+                ? darkMode
+                  ? "bg-blue-500/25 text-white shadow"
+                  : "bg-blue-100 text-slate-900 shadow"
+                : darkMode
+                  ? "text-slate-400"
+                  : "text-slate-500"
+            )}
+          >
+            Annual
+          </button>
           <span className="text-xs font-semibold text-blue-500">{annualDiscountLabel}</span>
         </div>
       </div>

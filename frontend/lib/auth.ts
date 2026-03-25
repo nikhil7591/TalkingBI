@@ -3,7 +3,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
 import { compare, hash } from "bcryptjs";
 
-import { findDemoUserByEmail } from "@/lib/demo-user-store";
 import { prisma } from "@/lib/prisma";
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
@@ -94,23 +93,6 @@ export const authOptions: NextAuthOptions = {
           }
         } catch {
           user = null;
-        }
-
-        if (!user) {
-          const demoUser = findDemoUserByEmail(email);
-          if (demoUser) {
-            const demoValid = await compare(password, demoUser.passwordHash);
-            if (!demoValid) {
-              return null;
-            }
-
-            return {
-              id: demoUser.id,
-              name: demoUser.name,
-              email: demoUser.email,
-              image: null,
-            };
-          }
         }
 
         if (!user?.passwordHash) {

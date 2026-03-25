@@ -1,3 +1,6 @@
+import { useMemo, useState } from "react";
+import ReactECharts from "echarts-for-react";
+
 import { Chart, Theme } from "@/lib/types";
 
 import AreaChartComp from "@/components/charts/AreaChartComp";
@@ -30,6 +33,7 @@ type Props = {
 };
 
 export default function ChartRenderer({ chart, theme }: Props) {
+  const [hoverTick, setHoverTick] = useState(0);
   const hasData = Array.isArray(chart.data) && chart.data.length > 0;
   const sourceType = (chart.type || "bar").toLowerCase();
   const safeChart = hasData
@@ -51,6 +55,35 @@ export default function ChartRenderer({ chart, theme }: Props) {
           data: [{ label: "No Data", value: 0 }],
         };
   const type = (safeChart.type || "bar").toLowerCase();
+
+  const enhancedOption = useMemo(() => {
+    if (!safeChart.echartsOption) {
+      return null;
+    }
+
+    const cloned = JSON.parse(JSON.stringify(safeChart.echartsOption)) as Record<string, any>;
+    cloned.animation = true;
+    cloned.animationDurationUpdate = 700;
+    cloned.animationEasingUpdate = "cubicOut";
+
+    if (hoverTick > 0 && Array.isArray(cloned.series) && cloned.series.length > 0) {
+      const firstSeries = cloned.series[0];
+      if (firstSeries?.type === "gauge" && Array.isArray(firstSeries.data) && firstSeries.data[0]) {
+        const currentValue = Number(firstSeries.data[0].value || 0);
+        firstSeries.data[0].value = Math.max(0, Math.min(100, currentValue + 6));
+      }
+    }
+
+    return cloned;
+  }, [safeChart.echartsOption, hoverTick]);
+
+  if (enhancedOption) {
+    return (
+      <div onMouseEnter={() => setHoverTick((prev) => prev + 1)} className="h-full w-full">
+        <ReactECharts option={enhancedOption} style={{ width: "100%", height: "100%" }} notMerge />
+      </div>
+    );
+  }
 
   if (type === "line") return <LineChartComp chart={safeChart} theme={theme} />;
   if (type === "bar") return <BarChartComp chart={safeChart} theme={theme} horizontal={false} />;

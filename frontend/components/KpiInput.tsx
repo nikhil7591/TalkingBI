@@ -10,6 +10,7 @@ type Props = {
   onSubmit: (kpi: string, selectedCharts: string[], selectedThemes: string[]) => void;
   loading: boolean;
   mode?: "light" | "dark";
+  isPaidUser?: boolean;
 };
 
 const CHART_OPTIONS = [
@@ -161,7 +162,7 @@ declare global {
   }
 }
 
-export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
+export default function KpiInput({ onSubmit, loading, mode = "light", isPaidUser = false }: Props) {
   const isDark = mode === "dark";
   const [value, setValue] = useState("");
   const [listening, setListening] = useState(false);
@@ -193,6 +194,38 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
     }, 500);
     return () => clearInterval(timer);
   }, [loading]);
+
+  useEffect(() => {
+    if (!isPaidUser) {
+      setSelectedThemes((prev) => prev.slice(0, 4));
+      return;
+    }
+
+    setSelectedCharts(CHART_OPTIONS);
+    setSelectedThemes((prev) => {
+      const next = [...prev];
+      while (next.length < 6) {
+        next.push(DEFAULT_THEME.name);
+      }
+      return next;
+    });
+  }, [isPaidUser]);
+
+  useEffect(() => {
+    if (!isPaidUser) {
+      setSelectedThemes((prev) => prev.slice(0, 4));
+      return;
+    }
+
+    setSelectedCharts(CHART_OPTIONS);
+    setSelectedThemes((prev) => {
+      const next = [...prev];
+      while (next.length < 6) {
+        next.push(DEFAULT_THEME.name);
+      }
+      return next;
+    });
+  }, [isPaidUser]);
 
   const startVoiceCapture = () => {
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -242,7 +275,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
   };
 
   const toggleChart = (type: string) => {
-    if (PAID_CHARTS.has(type)) {
+    if (!isPaidUser && PAID_CHARTS.has(type)) {
       setShowPaidPopup(true);
       return;
     }
@@ -256,7 +289,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
 
   const quickSelect = (mode: "all" | "clear") => {
     if (mode === "all") {
-      setSelectedCharts(CHART_OPTIONS.filter((chart) => !PAID_CHARTS.has(chart)));
+      setSelectedCharts(isPaidUser ? CHART_OPTIONS : CHART_OPTIONS.filter((chart) => !PAID_CHARTS.has(chart)));
       return;
     }
     setSelectedCharts([]);
@@ -333,7 +366,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
           <div className="grid max-h-80 grid-cols-2 gap-2 overflow-auto pr-1 md:grid-cols-4 lg:grid-cols-5">
             {CHART_OPTIONS.map((type) => {
               const active = selectedCharts.includes(type);
-              const isPaid = PAID_CHARTS.has(type);
+              const isPremium = PAID_CHARTS.has(type);
               return (
                 <button
                   key={type}
@@ -345,7 +378,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
                     background: active ? (isDark ? "#0f172a" : "#f8fafc") : isDark ? "#111827" : "#ffffff",
                   }}
                 >
-                  {isPaid && (
+                  {isPremium && !isPaidUser && (
                     <span className="absolute right-1 top-1 rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
                       PAID
                     </span>
@@ -370,7 +403,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
         <div className={`col-span-2 rounded-xl border p-3 ${isDark ? "border-slate-700 bg-slate-900/65" : "border-slate-200"}`}>
           <p className={`mb-3 text-sm font-semibold ${isDark ? "text-white" : "text-slate-700"}`}>Select theme for each dashboard</p>
           <div className="space-y-2 overflow-y-auto max-h-80">
-            {[0, 1, 2, 3].map((dashIdx) => (
+            {Array.from({ length: isPaidUser ? 6 : 4 }, (_, i) => i).map((dashIdx) => (
               <div key={dashIdx} className={`rounded-lg border p-2 ${isDark ? "border-slate-600" : "border-slate-300"}`}>
                 <label className={`mb-1 block text-xs font-semibold ${isDark ? "text-slate-200" : "text-slate-600"}`}>
                   Dashboard {dashIdx + 1}
@@ -408,7 +441,7 @@ export default function KpiInput({ onSubmit, loading, mode = "light" }: Props) {
               </div>
             ))}
 
-            {LOCKED_THEME_SLOTS.map((slot) => (
+            {!isPaidUser && LOCKED_THEME_SLOTS.map((slot) => (
               <button
                 key={slot.title}
                 type="button"

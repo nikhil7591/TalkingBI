@@ -62,9 +62,14 @@ class DynamicDatasetService:
             else:
                 # Lightweight date detection for object columns.
                 if isinstance(col, str) and any(token in col.lower() for token in ["date", "time", "month", "year"]):
-                    parsed = pd.to_datetime(series, errors="coerce")
-                    if parsed.notna().mean() > 0.8:
-                        dtype = "date"
+                    non_null = series.dropna().astype(str).str.strip()
+                    if not non_null.empty:
+                        sample = non_null.head(100)
+                        date_like = sample.str.match(r"^\d{1,4}[-/]\d{1,2}[-/]\d{1,4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$")
+                        if date_like.mean() > 0.6:
+                            parsed = pd.to_datetime(series, errors="coerce")
+                            if parsed.notna().mean() > 0.8:
+                                dtype = "date"
             columns.append({"name": str(col), "dtype": dtype})
         return columns
 

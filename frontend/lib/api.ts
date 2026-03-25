@@ -37,9 +37,10 @@ export async function generateDashboards(
           const creditMsg =
             (creditError.response?.data as { error?: string; warning?: string } | undefined)?.error ||
             (creditError.response?.data as { warning?: string } | undefined)?.warning ||
-            "Credits check issue. Continuing with fallback mode.";
-          console.warn("Credit consume warning:", creditMsg);
+            "Credits check failed.";
+          throw new Error(creditMsg);
         }
+        throw new Error("Credits check failed.");
       }
     }
 
@@ -98,6 +99,9 @@ export async function generateDashboards(
         (error.response?.data as { detail?: string } | undefined)?.detail ||
         "Unable to generate dashboards right now. Please try again.";
       throw new Error(message);
+    }
+    if (error instanceof Error) {
+      throw error;
     }
     throw new Error("Unexpected error while generating dashboards.");
   }

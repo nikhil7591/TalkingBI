@@ -6,11 +6,13 @@ import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 
 import BIChatbot from "@/components/BIChatbot";
+import DashboardRenderer from "@/components/DashboardRenderer";
 import { DashboardSpec } from "@/lib/types";
 
 type ChatFlowState = {
   dashboards: DashboardSpec[];
   selectedDashboardId?: string;
+  selectedDashboard?: DashboardSpec;
   currentKpi?: string;
   mode?: "light" | "dark";
 };
@@ -88,6 +90,15 @@ export default function DashboardChatPage() {
         <h2 className="mt-1 text-2xl font-bold text-slate-900">{selectedDashboard.title}</h2>
         <p className="mt-2 line-clamp-2 text-sm text-slate-700">{selectedDashboard.insightText || "Chatbot will answer based on this dashboard charts and KPI cards."}</p>
       </motion.section>
+
+      <section className="mb-5 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
+        <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Selected Dashboard Frame
+        </div>
+        <div className="max-h-[70vh] overflow-auto p-3">
+          <DashboardRenderer dashboard={selectedDashboard} />
+        </div>
+      </section>
 
       <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Related Multi Queries</div>

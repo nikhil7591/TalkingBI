@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import ReactECharts from "echarts-for-react";
 
 import { Chart, Theme } from "@/lib/types";
@@ -7,6 +8,7 @@ import { Chart, Theme } from "@/lib/types";
 type Props = { chart: Chart; theme: Theme };
 
 export default function GaugeComp({ chart }: Props) {
+  const [hovered, setHovered] = useState(false);
   const data = chart.data ?? [];
   const yField = chart.yAxis?.field ?? "value";
 
@@ -44,6 +46,12 @@ export default function GaugeComp({ chart }: Props) {
 
   const raw = resolveRawValue();
   const percent = Math.max(0, Math.min(100, raw));
+  const animatedPercent = useMemo(() => {
+    if (!hovered) {
+      return percent;
+    }
+    return Math.max(0, Math.min(100, percent + 8));
+  }, [hovered, percent]);
 
   const option = {
     series: [
@@ -63,10 +71,14 @@ export default function GaugeComp({ chart }: Props) {
           },
         },
         detail: { valueAnimation: true, formatter: "{value}%", fontSize: 22 },
-        data: [{ value: percent }],
+        data: [{ value: animatedPercent }],
       },
     ],
   };
 
-  return <ReactECharts option={option} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div className="h-full w-full" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <ReactECharts option={option} style={{ width: "100%", height: "100%" }} notMerge />
+    </div>
+  );
 }

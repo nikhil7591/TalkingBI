@@ -2,7 +2,6 @@ import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
-import { addDemoUser, findDemoUserByEmail } from "@/lib/demo-user-store";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -47,29 +46,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientInitializationError) {
-      if (findDemoUserByEmail(email || "")) {
-        return NextResponse.json({ error: "User already exists." }, { status: 409 });
-      }
-
-      const fallbackHash = await hash(password || "", 10);
-      const demoUser = addDemoUser({
-        id: `demo-${Date.now()}`,
-        name: name || "Talking BI User",
-        email: email || "",
-        passwordHash: fallbackHash,
-      });
-
       return NextResponse.json(
-        {
-          user: {
-            id: demoUser.id,
-            name: demoUser.name,
-            email: demoUser.email,
-            mode: "demo-fallback",
-          },
-          warning: "Database was unreachable. Account was created in temporary demo memory.",
-        },
-        { status: 201 }
+        { error: "Database is unreachable. Please verify DATABASE_URL and try again." },
+        { status: 500 }
       );
     }
 
