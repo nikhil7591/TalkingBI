@@ -74,13 +74,15 @@ export async function POST(req: Request) {
     }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2021") {
+      const prismaError = error as Prisma.PrismaClientKnownRequestError;
+
+      if (prismaError.code === "P2021") {
         return NextResponse.json(
           { error: "Database tables are missing. Run: npm run prisma:migrate" },
           { status: 500 }
         );
       }
-      if (error.code === "P2002") {
+      if (prismaError.code === "P2002") {
         return NextResponse.json({ error: "User already exists." }, { status: 409 });
       }
     }
