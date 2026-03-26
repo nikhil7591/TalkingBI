@@ -33,6 +33,10 @@ app.include_router(dashboard_router)
 app.include_router(agents_router)
 app.include_router(dataset_router)
 
+# pinger to check if the server is alive
+@app.get("/ping")
+async def ping():
+    return {"status": "alive"}
 
 @app.on_event("startup")
 def startup_event() -> None:
