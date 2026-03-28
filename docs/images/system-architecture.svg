@@ -1,0 +1,100 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Talking BI system architecture">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1026"/>
+      <stop offset="0.52" stop-color="#0A2540"/>
+      <stop offset="1" stop-color="#0C3A2D"/>
+    </linearGradient>
+    <linearGradient id="frontend" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="backend" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#34D399"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="storage" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FBBF24"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="ai" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FB7185"/>
+      <stop offset="1" stop-color="#E11D48"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-opacity="0.25"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0 0L10 4L0 8V0Z" fill="#E5E7EB"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="1430" cy="120" r="180" fill="#38BDF8" opacity="0.08"/>
+  <circle cx="220" cy="760" r="240" fill="#22C55E" opacity="0.08"/>
+
+  <text x="800" y="70" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="700" fill="#F8FAFC">Talking BI - System Architecture</text>
+  <text x="800" y="106" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#C7D2FE">Next.js Frontend + FastAPI Backend + AI Agents + Prisma/PostgreSQL</text>
+
+  <g filter="url(#shadow)">
+    <rect x="80" y="210" rx="22" ry="22" width="260" height="170" fill="#111827" stroke="#60A5FA" stroke-width="2"/>
+    <text x="210" y="258" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700" fill="#E2E8F0">Users</text>
+    <text x="210" y="292" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#BFDBFE">Browser + Voice UI</text>
+    <text x="210" y="322" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#BFDBFE">KPI Input</text>
+    <text x="210" y="352" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#BFDBFE">Dashboard Interaction</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="420" y="170" rx="24" ry="24" width="420" height="250" fill="url(#frontend)"/>
+    <text x="630" y="228" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700" fill="#EFF6FF">Frontend (Next.js)</text>
+    <text x="630" y="270" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#DBEAFE">App Router Pages</text>
+    <text x="630" y="300" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#DBEAFE">BIChatbot + DashboardRenderer</text>
+    <text x="630" y="330" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#DBEAFE">lib/api.ts + NextAuth routes</text>
+    <text x="630" y="360" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#DBEAFE">Theme + Conversation History</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="920" y="160" rx="24" ry="24" width="500" height="280" fill="url(#backend)"/>
+    <text x="1170" y="220" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700" fill="#ECFDF5">Backend (FastAPI)</text>
+    <text x="1170" y="264" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#D1FAE5">main.py + CORS + startup dataset scan</text>
+    <text x="1170" y="294" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#D1FAE5">/gen-dashboard /voice-explanation /bi-chat</text>
+    <text x="1170" y="324" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#D1FAE5">/agent pipeline + /dataset ingestion APIs</text>
+    <text x="1170" y="354" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#D1FAE5">services: ai, voice, data, dynamic dataset</text>
+    <text x="1170" y="384" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#D1FAE5">bi_chat_service + kpi_service helpers</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="390" y="520" rx="22" ry="22" width="470" height="230" fill="url(#storage)"/>
+    <text x="625" y="582" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="700" fill="#111827">Data and Persistence</text>
+    <text x="625" y="624" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#1F2937">Prisma schema + migrations</text>
+    <text x="625" y="654" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#1F2937">PrismaPg adapter with DATABASE_URL</text>
+    <text x="625" y="684" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#1F2937">Users, subscriptions, usage, chats</text>
+    <text x="625" y="714" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#1F2937">Dynamic datasets by session</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="960" y="520" rx="22" ry="22" width="430" height="230" fill="url(#ai)"/>
+    <text x="1175" y="582" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="700" fill="#FFF1F2">AI and Analytics Layer</text>
+    <text x="1175" y="624" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#FFE4E6">OpenAI for dashboard and BI chat</text>
+    <text x="1175" y="654" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#FFE4E6">Groq-first voice text with fallback</text>
+    <text x="1175" y="684" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#FFE4E6">Agent chain: SQL -> DeepPrep -> Doc2Chart</text>
+    <text x="1175" y="714" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="19" fill="#FFE4E6">Insights + executive dashboard narrative</text>
+  </g>
+
+  <line x1="340" y1="292" x2="420" y2="292" stroke="#E5E7EB" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="840" y1="292" x2="920" y2="292" stroke="#E5E7EB" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <path d="M1170 440 C1170 475, 1170 495, 1170 520" stroke="#E5E7EB" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <path d="M920 350 C835 420, 760 475, 700 520" stroke="#E5E7EB" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <path d="M630 420 C625 470, 625 490, 625 520" stroke="#E5E7EB" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+
+  <path d="M870 635 C930 635, 930 635, 960 635" stroke="#1F2937" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+
+  <text x="380" y="280" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#E2E8F0">HTTPS</text>
+  <text x="870" y="280" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#E2E8F0">REST API</text>
+  <text x="1210" y="486" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#E2E8F0">Agent orchestration</text>
+  <text x="720" y="505" font-family="Segoe UI, Arial, sans-serif" font-size="17" fill="#E2E8F0">Dataset + metadata</text>
+
+  <rect x="70" y="810" width="1460" height="56" rx="14" fill="#111827" opacity="0.82"/>
+  <text x="800" y="845" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#93C5FD">Talking BI transforms KPI prompts into interactive dashboards with AI, data engineering, and conversation memory.</text>
+</svg>
