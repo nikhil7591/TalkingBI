@@ -15,7 +15,8 @@ export default function BarChartComp({ chart, theme, horizontal = false, stacked
   const data = chart.data ?? [];
   const xField = chart.xAxis?.field ?? Object.keys(data[0] ?? {})[0] ?? "x";
   const yField = chart.yAxis?.field ?? Object.keys(data[0] ?? {})[1] ?? "y";
-  const primaryColor = chart.colors?.[0] || theme?.primaryColor || "#2563eb";
+  const palette = chart.colors?.length ? chart.colors : theme?.chartColors?.length ? theme.chartColors : [theme?.primaryColor || "#2563eb"];
+  const primaryColor = palette[0] || theme?.primaryColor || "#2563eb";
   const subTextColor = theme?.subTextColor || "#94a3b8";
 
   const category = data.map((d) => String(d[xField] ?? ""));
@@ -37,7 +38,7 @@ export default function BarChartComp({ chart, theme, horizontal = false, stacked
         stack: stacked ? "total" : undefined,
         data: values,
         itemStyle: {
-          color: primaryColor,
+          color: (params: { dataIndex: number }) => palette[params.dataIndex % palette.length] || primaryColor,
           borderRadius: horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0],
         },
         label: {

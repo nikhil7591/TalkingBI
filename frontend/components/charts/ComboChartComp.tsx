@@ -10,8 +10,9 @@ export default function ComboChartComp({ chart, theme }: Props) {
   const rows = chart.data ?? [];
   const xField = chart.xAxis?.field ?? Object.keys(rows[0] ?? {})[0] ?? "x";
   const yField = chart.yAxis?.field ?? Object.keys(rows[0] ?? {})[1] ?? "value";
-  const primaryColor = theme?.primaryColor || "#2563eb";
-  const accentColor = theme?.accentColor || "#22d3ee";
+  const palette = chart.colors?.length ? chart.colors : theme?.chartColors?.length ? theme.chartColors : [theme?.primaryColor || "#2563eb", theme?.accentColor || "#22d3ee"];
+  const primaryColor = palette[0] || theme?.primaryColor || "#2563eb";
+  const accentColor = palette[1] || theme?.accentColor || "#22d3ee";
   const subTextColor = theme?.subTextColor || "#94a3b8";
 
   const cats = rows.slice(0, 16).map((r) => String(r[xField] ?? "N/A"));
@@ -24,7 +25,15 @@ export default function ComboChartComp({ chart, theme }: Props) {
     xAxis: { type: "category", data: cats, axisLabel: { color: subTextColor } },
     yAxis: { type: "value", axisLabel: { color: subTextColor } },
     series: [
-      { type: "bar", name: "Volume", data: vals, itemStyle: { color: primaryColor, borderRadius: [4, 4, 0, 0] } },
+      {
+        type: "bar",
+        name: "Volume",
+        data: vals,
+        itemStyle: {
+          color: (params: { dataIndex: number }) => palette[params.dataIndex % palette.length] || primaryColor,
+          borderRadius: [4, 4, 0, 0],
+        },
+      },
       { type: "line", name: "Trend", data: vals, smooth: true, lineStyle: { color: accentColor, width: 2 } },
     ],
   };

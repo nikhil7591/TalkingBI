@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
 import { compare, hash } from "bcryptjs";
 
+import { findDemoUserByEmail } from "@/lib/demo-user-store";
 import { prisma } from "@/lib/prisma";
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
@@ -75,6 +76,20 @@ export const authOptions: NextAuthOptions = {
         const email = credentials.email.trim().toLowerCase();
         const password = credentials.password;
 
+        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+          try {
+            const adminUser = await ensureAdminAccount();
+            return {
+              id: adminUser.id,
+              name: adminUser.name,
+              email: adminUser.email,
+              image: adminUser.image,
+            };
+          } catch {
+            // Continue to fallback auth paths below.
+          }
+        }
+
         let user: { id: string; name: string | null; email: string; image: string | null; passwordHash: string | null } | null = null;
         try {
           user = await prisma.user.findUnique({
@@ -88,11 +103,34 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          if (!user && email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-            user = await ensureAdminAccount();
-          }
         } catch {
           user = null;
+        }
+
+        if (!user) {
+          if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+            return {
+              id: "local-admin",
+              name: "Admin",
+              email: ADMIN_EMAIL,
+              image: null,
+            };
+          }
+
+          const demoUser = findDemoUserByEmail(email);
+          if (demoUser) {
+            const demoValid = await compare(password, demoUser.passwordHash);
+            if (!demoValid) {
+              return null;
+            }
+
+            return {
+              id: demoUser.id,
+              name: demoUser.name,
+              email: demoUser.email,
+              image: null,
+            };
+          }
         }
 
         if (!user?.passwordHash) {

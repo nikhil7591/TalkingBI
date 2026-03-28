@@ -16,7 +16,7 @@ type LangMode = "english" | "hindi" | "hinglish";
 type Props = {
   dashboards: DashboardSpec[];
   kpi: string;
-  isPaidUser?: boolean;
+  isAdmin?: boolean;
 };
 
 const THUMB_BASE_WIDTH = 1200;
@@ -66,7 +66,7 @@ function DashboardThumb({ dashboard, onClick, locked }: { dashboard: DashboardSp
           {dashboard.title}
         </div>
         <div className="text-[10px]" style={{ color: theme.subTextColor }}>
-          Click for full preview
+          {locked ? "Preview locked for this plan" : "Click for full preview"}
         </div>
       </div>
 
@@ -82,7 +82,7 @@ function DashboardThumb({ dashboard, onClick, locked }: { dashboard: DashboardSp
             height: `${THUMB_BASE_HEIGHT}px`,
             transform: `scale(${thumbScale})`,
             transformOrigin: "top left",
-            filter: locked ? "blur(4px) saturate(1.15)" : "none",
+            filter: locked ? "blur(5px) saturate(1.1) brightness(0.9)" : "none",
           }}
         >
           <DashboardRenderer dashboard={dashboard} />
@@ -101,7 +101,7 @@ function DashboardThumb({ dashboard, onClick, locked }: { dashboard: DashboardSp
   );
 }
 
-export default function DashboardPreviewGallery({ dashboards, kpi, isPaidUser = false }: Props) {
+export default function DashboardPreviewGallery({ dashboards, kpi, isAdmin = false }: Props) {
   const [selected, setSelected] = useState<DashboardSpec | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [viewMode, setViewMode] = useState<"dashboard" | "text">("dashboard");
@@ -178,9 +178,9 @@ export default function DashboardPreviewGallery({ dashboards, kpi, isPaidUser = 
           <DashboardThumb
             key={dashboard.id}
             dashboard={dashboard}
-            locked={idx >= 4}
+            locked={!isAdmin && idx >= 4}
             onClick={() => {
-              if (idx >= 4 && !isPaidUser) {
+              if (!isAdmin && idx >= 4) {
                 setShowPremiumPopup(true);
                 return;
               }

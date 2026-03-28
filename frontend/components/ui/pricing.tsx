@@ -43,11 +43,10 @@ export function Pricing({
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const toggleRef = useRef<HTMLDivElement>(null);
 
-  const handleToggle = (nextIsMonthly: boolean) => {
-    if (nextIsMonthly === isMonthly) {
+  const setBilling = (nextIsMonthly: boolean) => {
+    if (isMonthly === nextIsMonthly) {
       return;
     }
-
     setIsMonthly(nextIsMonthly);
 
     if (!nextIsMonthly && toggleRef.current) {
@@ -80,40 +79,46 @@ export function Pricing({
       </div>
 
       <div className="mb-10 flex justify-center">
-        <div ref={toggleRef} className={cn("inline-flex items-center gap-2 rounded-full border p-1 shadow-sm", darkMode ? "border-slate-500 bg-slate-800/95" : "border-slate-300 bg-white") }>
+        <div
+          ref={toggleRef}
+          className={cn(
+            "relative inline-flex items-center gap-0 rounded-full border p-1 shadow-sm",
+            darkMode ? "border-slate-500 bg-slate-800/95" : "border-slate-300 bg-white"
+          )}
+        >
           <button
             type="button"
-            onClick={() => handleToggle(true)}
+            onClick={() => setBilling(true)}
             className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-300",
+              "relative z-10 w-24 rounded-full py-2.5 text-sm font-semibold transition",
               isMonthly
                 ? darkMode
-                  ? "bg-cyan-500/25 text-white shadow"
-                  : "bg-cyan-100 text-slate-900 shadow"
+                  ? "bg-slate-700 text-white shadow-md"
+                  : "bg-slate-100 text-slate-900 shadow-md"
                 : darkMode
-                  ? "text-slate-400"
-                  : "text-slate-500"
+                ? "text-slate-400 hover:text-slate-300"
+                : "text-slate-600 hover:text-slate-700"
             )}
           >
             Monthly
           </button>
           <button
             type="button"
-            onClick={() => handleToggle(false)}
+            onClick={() => setBilling(false)}
             className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-semibold transition-all duration-300",
+              "relative z-10 w-24 rounded-full py-2.5 text-sm font-semibold transition",
               !isMonthly
                 ? darkMode
-                  ? "bg-blue-500/25 text-white shadow"
-                  : "bg-blue-100 text-slate-900 shadow"
+                  ? "bg-slate-700 text-white shadow-md"
+                  : "bg-slate-100 text-slate-900 shadow-md"
                 : darkMode
-                  ? "text-slate-400"
-                  : "text-slate-500"
+                ? "text-slate-400 hover:text-slate-300"
+                : "text-slate-600 hover:text-slate-700"
             )}
           >
             Annual
           </button>
-          <span className="text-xs font-semibold text-blue-500">{annualDiscountLabel}</span>
+          <span className="absolute -right-32 top-1/2 whitespace-nowrap -translate-y-1/2 text-xs font-semibold text-blue-500">{annualDiscountLabel}</span>
         </div>
       </div>
 

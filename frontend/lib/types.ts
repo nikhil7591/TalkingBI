@@ -1,6 +1,10 @@
 export interface Theme {
   background: string;
+  surfaceGradient?: string;
   cardBackground: string;
+  cardGlass?: string;
+  heroGlow?: string;
+  animatedAccent?: boolean;
   primaryColor: string;
   accentColor: string;
   textColor: string;

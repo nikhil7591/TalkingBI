@@ -15,12 +15,15 @@ from app.services.data_service import data_service
 
 app = FastAPI(title="Talking BI Dashboard Generator", version="1.0.0")
 
-allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+default_allowed_origins = "http://localhost:3000,http://127.0.0.1:3000"
+allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", default_allowed_origins)
 allowed_origins = [o.strip() for o in allowed_origins_raw.split(",") if o.strip()]
+allowed_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", r"https://.*\.vercel\.app")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,6 +33,10 @@ app.include_router(dashboard_router)
 app.include_router(agents_router)
 app.include_router(dataset_router)
 
+# pinger to check if the server is alive
+@app.get("/ping")
+async def ping():
+    return {"status": "alive"}
 
 @app.on_event("startup")
 def startup_event() -> None:

@@ -9,6 +9,7 @@ import { signOut, useSession } from "next-auth/react";
 import DatasetUrlInput from "@/components/DatasetUrlInput";
 import DashboardPreviewGallery from "@/components/DashboardPreviewGallery";
 import KpiInput from "@/components/KpiInput";
+import CreditsResetTimer from "@/components/CreditsResetTimer";
 import { NavBar } from "@/components/ui/tubelight-navbar";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import DisplayCards from "@/components/ui/display-cards";
@@ -96,6 +97,7 @@ function GenerationOverlay({ step }: { step: number }) {
 export default function DashboardPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const isAdmin = (session?.user?.email || "").toLowerCase() === "admin@gmail.com";
   const [dashboards, setDashboards] = useState<DashboardSpec[]>([]);
   const [currentKpi, setCurrentKpi] = useState("");
   const [loading, setLoading] = useState(false);
@@ -109,12 +111,116 @@ export default function DashboardPage() {
   const [datasetSessionId, setDatasetSessionId] = useState<string | null>(null);
   const [useUrlDataset, setUseUrlDataset] = useState(false);
   const [creditInfo, setCreditInfo] = useState<{ remaining: number; limit: number } | null>(null);
-  const [isPaidUser, setIsPaidUser] = useState(false);
   const [selectedDashboardForChat, setSelectedDashboardForChat] = useState<string | null>(null);
+  const [showPremiumPopup, setShowPremiumPopup] = useState(false);
   const dashboardCacheKey = useMemo(
     () => `talkingbi_dashboard_state_${session?.user?.id || "guest"}`,
     [session?.user?.id]
   );
+
+  const enrichedDashboardsForAdmin = useMemo(() => {
+    if (dashboards.length === 0) {
+      return dashboards;
+    }
+
+    const base = dashboards[0];
+    const sourceA = dashboards[1] || base;
+    const sourceB = dashboards[2] || dashboards[3] || base;
+
+    const premiumThemeA = {
+      ...sourceA.theme,
+      background: "linear-gradient(145deg,#0b1220 0%,#12233d 45%,#1d4ed8 100%)",
+      cardBackground: "rgba(7,18,44,0.88)",
+      textColor: "#e0f2fe",
+      subTextColor: "#bae6fd",
+      borderColor: "rgba(34,211,238,0.34)",
+      primaryColor: "#38bdf8",
+      accentColor: "#22d3ee",
+      chartColors: ["#38bdf8", "#22d3ee", "#34d399", "#f59e0b", "#f472b6"],
+      headingColor: "#f0f9ff",
+      subheadingColor: "#a5f3fc",
+    };
+
+    const premiumThemeB = {
+      ...sourceB.theme,
+      background: "linear-gradient(145deg,#2b0b1f 0%,#3b0d2f 42%,#7a1f4a 100%)",
+      cardBackground: "rgba(54,10,38,0.88)",
+      textColor: "#ffe4ef",
+      subTextColor: "#fbcfe8",
+      borderColor: "rgba(244,114,182,0.34)",
+      primaryColor: "#f472b6",
+      accentColor: "#fb7185",
+      chartColors: ["#f472b6", "#fb7185", "#c084fc", "#f59e0b", "#22d3ee"],
+      headingColor: "#fff1f2",
+      subheadingColor: "#fbcfe8",
+    };
+
+    const premiumATypePack = ["line", "area", "bar", "combo"];
+    const premiumBTypePack = ["horizontal-bar", "stacked-bar", "donut", "line"];
+
+    const premiumA: DashboardSpec = {
+      ...sourceA,
+      id: "admin-premium-5",
+      title: "Executive Signal Room",
+      insightText: "Leadership-focused view with momentum, anomaly, and risk drilldowns.",
+      theme: premiumThemeA,
+      charts: sourceA.charts.map((chart, idx) => ({
+        ...chart,
+        id: `admin-premium-5-chart-${idx + 1}`,
+        type: premiumATypePack[idx % premiumATypePack.length],
+        colors: premiumThemeA.chartColors,
+        title: idx % 2 === 0 ? `${chart.title} - Momentum Signal` : `${chart.title} - Risk Lens`,
+        subtitle: `Premium View 5 | ${idx % 2 === 0 ? "Leadership Momentum" : "Anomaly Tracking"}`,
+        data: idx % 2 === 0 ? chart.data : [...chart.data].reverse(),
+      })),
+    };
+
+    const premiumB: DashboardSpec = {
+      ...sourceB,
+      id: "admin-premium-6",
+      title: "Forecast Mission Control",
+      insightText: "Scenario and forecast dashboard for next-best-action planning.",
+      theme: premiumThemeB,
+      charts: sourceB.charts.map((chart, idx) => ({
+        ...chart,
+        id: `admin-premium-6-chart-${idx + 1}`,
+        type: premiumBTypePack[idx % premiumBTypePack.length],
+        colors: premiumThemeB.chartColors,
+        title: idx % 2 === 0 ? `${chart.title} - Forecast Pulse` : `${chart.title} - Scenario Planner`,
+        subtitle: `Premium View 6 | ${idx % 2 === 0 ? "Forward Outlook" : "Decision Simulation"}`,
+        data: idx % 2 === 0 ? [...chart.data].slice(0, 16) : [...chart.data],
+      })),
+    };
+
+    return [...dashboards.slice(0, 4), premiumA, premiumB];
+  }, [dashboards, isAdmin]);
+
+  const selectedDashboard = useMemo(() => {
+    if (!enrichedDashboardsForAdmin.length) {
+      return null;
+    }
+    return (
+      enrichedDashboardsForAdmin.find((d) => d.id === selectedDashboardForChat) || enrichedDashboardsForAdmin[0]
+    );
+  }, [enrichedDashboardsForAdmin, selectedDashboardForChat]);
+
+  const dashboardScopedSuggestions = useMemo(() => {
+    if (!selectedDashboard) {
+      return [] as string[];
+    }
+
+    const topChartNames = (selectedDashboard.charts || [])
+      .slice(0, 3)
+      .map((c) => c.title)
+      .filter(Boolean);
+
+    return [
+      `What is driving ${selectedDashboard.title} trends this week?`,
+      `Which KPI in ${selectedDashboard.title} needs immediate action?`,
+      topChartNames[0] ? `Explain the key pattern in ${topChartNames[0]}.` : "Explain the strongest pattern in this dashboard.",
+      topChartNames[1] ? `Compare movement between ${topChartNames[1]} and overall KPI.` : "Compare top two metrics with exact values.",
+    ];
+  }, [selectedDashboard]);
 
   useEffect(() => {
     const storedIdx = Number(localStorage.getItem("talkingbi_palette_idx") || "0");
@@ -212,9 +318,8 @@ export default function DashboardPage() {
         if (!response.ok) {
           return;
         }
-        const data = (await response.json()) as { tokensRemaining?: number; dailyLimit?: number; isPaid?: boolean; plan?: string };
+        const data = (await response.json()) as { tokensRemaining?: number; dailyLimit?: number };
         setCreditInfo({ remaining: Number(data.tokensRemaining || 0), limit: Number(data.dailyLimit || 30) });
-        setIsPaidUser(Boolean(data.isPaid) || data.plan === "admin");
       } catch {
         // Silent fail for non-blocking badge.
       }
@@ -288,9 +393,8 @@ export default function DashboardPage() {
             body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
           });
           if (res.ok) {
-            const c = (await res.json()) as { tokensRemaining?: number; dailyLimit?: number; isPaid?: boolean; plan?: string };
+            const c = (await res.json()) as { tokensRemaining?: number; dailyLimit?: number };
             setCreditInfo({ remaining: Number(c.tokensRemaining || 0), limit: Number(c.dailyLimit || 30) });
-            setIsPaidUser(Boolean(c.isPaid) || c.plan === "admin");
           }
         } catch {
           // Ignore credit badge refresh failures.
@@ -305,39 +409,21 @@ export default function DashboardPage() {
     }
   };
 
-  const dashboardsForView = useMemo(() => {
-    if (!isPaidUser || dashboards.length < 2) {
-      return dashboards;
-    }
-
-    const premiumFive: DashboardSpec = {
-      ...dashboards[0],
-      id: "premium-5",
-      title: "Executive Signal Room",
-      insightText: "Premium executive synthesis with blended momentum, segment, and anomaly context.",
-    };
-
-    const premiumSix: DashboardSpec = {
-      ...dashboards[1],
-      id: "premium-6",
-      title: "Forecast Mission Control",
-      insightText: "Premium predictive board with scenario comparison and action-priority guidance.",
-    };
-
-    return [...dashboards.slice(0, 4), premiumFive, premiumSix];
-  }, [dashboards, isPaidUser]);
-
   const launchDashboardChat = () => {
-    if (!dashboardsForView.length) {
+    if (!enrichedDashboardsForAdmin.length) {
       return;
     }
 
-    const selectedId = selectedDashboardForChat || dashboardsForView[0]?.id;
-    const selectedDashboard = dashboardsForView.find((d) => d.id === selectedId) || dashboardsForView[0];
+    const selectedId = selectedDashboardForChat || enrichedDashboardsForAdmin[0]?.id;
+    const selectedIdx = enrichedDashboardsForAdmin.findIndex((d) => d.id === selectedId);
+    if (!isAdmin && selectedIdx >= 4) {
+      setShowPremiumPopup(true);
+      return;
+    }
+
     const payload = {
-      dashboards: dashboardsForView,
+      dashboards: enrichedDashboardsForAdmin,
       selectedDashboardId: selectedId,
-      selectedDashboard,
       currentKpi,
       mode,
     };
@@ -493,11 +579,20 @@ export default function DashboardPage() {
         />
       </section>
 
-      <section className="mt-4 rounded-3xl border border-slate-200 bg-white/70 p-4 shadow-[0_14px_50px_rgba(15,23,42,0.10)] backdrop-blur lg:p-6">
+      <section
+        className={`mt-4 rounded-3xl border p-4 shadow-[0_14px_50px_rgba(15,23,42,0.10)] backdrop-blur lg:p-6 ${
+          mode === "dark" ? "border-slate-700 bg-slate-900/75" : "border-slate-200 bg-white/70"
+        }`}
+      >
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.9fr_1fr]">
-          <KpiInput onSubmit={submitKpi} loading={loading} mode={mode} isPaidUser={isPaidUser} />
-          <div className="hidden rounded-2xl border border-slate-200 bg-white/80 p-4 lg:block">
-            <div className="mb-2 text-sm font-semibold text-slate-700">Quick Dashboard Highlights</div>
+          <KpiInput onSubmit={submitKpi} loading={loading} mode={mode} isAdmin={isAdmin} />
+          <div
+            className={`hidden rounded-2xl border p-4 lg:block ${
+              mode === "dark" ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white/80"
+            }`}
+          >
+            <div className={`mb-2 text-sm font-semibold ${mode === "dark" ? "text-slate-100" : "text-slate-700"}`}>Quick Dashboard Highlights</div>
+            {isAdmin ? <div className="mb-2 text-xs font-semibold text-emerald-700">Admin mode: all paid charts and premium theme slots are unlocked.</div> : null}
             <DisplayCards />
           </div>
         </div>
@@ -510,39 +605,54 @@ export default function DashboardPage() {
       <section className="mt-6 space-y-4">
         {loading && <LoadingSkeleton />}
 
-        {!loading && dashboardsForView.length > 0 && <DashboardPreviewGallery dashboards={dashboardsForView} kpi={currentKpi} isPaidUser={isPaidUser} />}
+        {!loading && dashboards.length > 0 && <DashboardPreviewGallery dashboards={enrichedDashboardsForAdmin} kpi={currentKpi} isAdmin={isAdmin} />}
       </section>
 
-      {!loading && dashboardsForView.length > 0 && (
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-[0_10px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm">
-          <h3 className="text-lg font-bold text-slate-900">Choose Dashboard For Chat</h3>
-          <p className="mt-1 text-sm text-slate-600">Select a dashboard and continue to the dedicated chat page with animated handoff.</p>
+      {!loading && dashboards.length > 0 && (
+        <section
+          className={`mt-6 rounded-3xl border p-4 shadow-[0_10px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm ${
+            mode === "dark" ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white/80"
+          }`}
+        >
+          <h3 className={`text-lg font-bold ${mode === "dark" ? "text-slate-100" : "text-slate-900"}`}>Choose Dashboard For Chat</h3>
+          <p className={`mt-1 text-sm ${mode === "dark" ? "text-slate-300" : "text-slate-600"}`}>Select a dashboard and continue to the dedicated chat page with animated handoff.</p>
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-            {dashboardsForView.map((dash, idx) => {
+            {enrichedDashboardsForAdmin.map((dash, idx) => {
               const active = selectedDashboardForChat === dash.id;
+              const locked = !isAdmin && idx >= 4;
               return (
                 <button
                   key={dash.id}
                   type="button"
-                  onClick={() => setSelectedDashboardForChat(dash.id)}
-                  className={`rounded-2xl border p-3 text-left transition-all duration-500 ${active ? "border-cyan-500 bg-cyan-50 shadow-[0_0_0_1px_rgba(6,182,212,0.45),0_18px_40px_rgba(6,182,212,0.18)] -translate-y-1" : "border-slate-200 bg-white"}`}
+                  onClick={() => {
+                    if (locked) {
+                      setShowPremiumPopup(true);
+                      return;
+                    }
+                    setSelectedDashboardForChat(dash.id);
+                  }}
+                  className={`rounded-2xl border p-3 text-left transition-all duration-500 ${active ? "border-cyan-500 bg-cyan-50 shadow-[0_0_0_1px_rgba(6,182,212,0.45),0_18px_40px_rgba(6,182,212,0.18)] -translate-y-1" : mode === "dark" ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white"}`}
                   style={{ animationDelay: `${idx * 90}ms` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dashboard {idx + 1}</div>
-                  <div className="mt-1 text-sm font-bold text-slate-900">{dash.title}</div>
-                  <div className="mt-1 text-xs text-slate-600">Tap to activate chat context</div>
+                  <div className={`text-xs font-semibold uppercase tracking-wide ${mode === "dark" ? "text-slate-300" : "text-slate-500"}`}>
+                    Dashboard {idx + 1}{locked ? " - Premium" : ""}
+                  </div>
+                  <div className={`mt-1 text-sm font-bold ${mode === "dark" ? "text-slate-100" : "text-slate-900"}`}>{dash.title}</div>
+                  <div className={`mt-1 text-xs ${mode === "dark" ? "text-slate-300" : "text-slate-600"}`}>
+                    {locked ? "Locked: click to view plans" : "Tap to activate chat context"}
+                  </div>
                 </button>
               );
             })}
           </div>
 
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Related Multi Query Suggestions</div>
+          <div className={`mt-4 rounded-2xl border p-3 ${mode === "dark" ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
+            <div className={`text-xs font-semibold uppercase tracking-wide ${mode === "dark" ? "text-slate-300" : "text-slate-500"}`}>Related Multi Query Suggestions</div>
             <div className="mt-2 flex flex-wrap gap-2">
-              {["Which segment is highest contributor?", "Why did trend dip in latest period?", "Compare top 3 regions with exact numbers", "What should be next best action?"]
+              {dashboardScopedSuggestions
                 .map((q) => (
-                  <span key={q} className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                  <span key={q} className={`rounded-full border px-3 py-1 text-xs font-medium ${mode === "dark" ? "border-slate-600 bg-slate-900 text-slate-200" : "border-slate-300 bg-white text-slate-700"}`}>
                     {q}
                   </span>
                 ))}
@@ -550,7 +660,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-slate-600">Selected: <span className="font-semibold text-slate-900">{dashboardsForView.find((d) => d.id === selectedDashboardForChat)?.title || dashboardsForView[0]?.title}</span></p>
+            <p className={`text-sm ${mode === "dark" ? "text-slate-300" : "text-slate-600"}`}>Selected: <span className={`font-semibold ${mode === "dark" ? "text-slate-100" : "text-slate-900"}`}>{selectedDashboard?.title || "Dashboard"}</span></p>
             <button
               type="button"
               onClick={launchDashboardChat}
@@ -563,6 +673,33 @@ export default function DashboardPage() {
       )}
 
       {loading && <GenerationOverlay step={generationStep} />}
+
+      {showPremiumPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900">Premium Dashboard Locked</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Premium dashboard visible hai, preview/chat unlock karne ke liye plan upgrade karein.
+            </p>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPremiumPopup(false)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+              >
+                Close
+              </button>
+              <Link
+                href="/plans"
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => setShowPremiumPopup(false)}
+              >
+                View Plans
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-8 text-center text-xs text-slate-500">
         Need premium charts and account setup? <Link href="/plans" className="font-semibold text-blue-700 underline">Try plans</Link>
@@ -586,9 +723,12 @@ export default function DashboardPage() {
       </div>
 
       {creditInfo ? (
-        <div className="fixed left-4 top-3 z-50 md:left-8 md:top-4">
-          <div className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-lg">
-            Credits: {creditInfo.remaining}/{creditInfo.limit}
+        <div className="fixed left-4 top-3 z-50 md:left-8 md:top-4 flex flex-col gap-1.5">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-lg">
+            <span>Credits: {creditInfo.remaining}/{creditInfo.limit}</span>
+          </div>
+          <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 shadow-lg">
+            <CreditsResetTimer />
           </div>
         </div>
       ) : null}

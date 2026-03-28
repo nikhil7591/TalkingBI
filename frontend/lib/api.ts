@@ -6,6 +6,16 @@ import { ApiResponse, ChatConversationDetail, ChatConversationSummary, ChatMessa
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export type CreditEventType = "KPI_QUERY" | "DASHBOARD_GENERATION" | "BI_CHAT_QUERY";
+
+export type CreditStatusPayload = {
+  tokensRemaining: number;
+  dailyLimit: number;
+  tokensUsed?: number;
+  allowed?: boolean;
+  warning?: string;
+};
+
 function normalizeThemeKey(themeInput: string | undefined): string {
   if (!themeInput) return "dark-professional";
   const normalized = themeInput.trim().toLowerCase();
@@ -18,6 +28,34 @@ function normalizeThemeKey(themeInput: string | undefined): string {
   return reverseThemeMap.get(normalized) || "dark-professional";
 }
 
+export async function consumeCredits(payload: {
+  userId: string;
+  userEmail?: string;
+  eventType: CreditEventType;
+}): Promise<CreditStatusPayload> {
+  const response = await axios.post("/api/credits/consume", payload, { timeout: 10000 });
+  return {
+    tokensRemaining: Number(response.data?.tokensRemaining || 0),
+    dailyLimit: Number(response.data?.dailyLimit || 30),
+    tokensUsed: Number(response.data?.tokensUsed || 0),
+    allowed: Boolean(response.data?.allowed ?? true),
+    warning: response.data?.warning,
+  };
+}
+
+export async function getCreditsStatus(payload: {
+  userId: string;
+  userEmail?: string;
+}): Promise<CreditStatusPayload> {
+  const response = await axios.post("/api/credits/status", payload, { timeout: 10000 });
+  return {
+    tokensRemaining: Number(response.data?.tokensRemaining || 0),
+    dailyLimit: Number(response.data?.dailyLimit || 30),
+    tokensUsed: Number(response.data?.tokensUsed || 0),
+    warning: response.data?.warning,
+  };
+}
+
 export async function generateDashboards(
   kpi: string,
   selectedCharts: string[],
@@ -27,11 +65,11 @@ export async function generateDashboards(
   try {
     if (options?.userId) {
       try {
-        await axios.post(
-          "/api/credits/consume",
-          { userId: options.userId, userEmail: options.userEmail, eventType: "KPI_QUERY" },
-          { timeout: 10000 }
-        );
+        await consumeCredits({
+          userId: options.userId,
+          userEmail: options.userEmail,
+          eventType: "DASHBOARD_GENERATION",
+        });
       } catch (creditError) {
         if (axios.isAxiosError(creditError)) {
           const creditMsg =

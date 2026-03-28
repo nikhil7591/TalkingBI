@@ -4,6 +4,13 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
+function extractPrismaCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  if (!("code" in error)) return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
+}
+
 export async function POST(req: Request) {
   let name = "";
   let email = "";
@@ -44,7 +51,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ user }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Prisma.PrismaClientInitializationError) {
       return NextResponse.json(
         { error: "Database is unreachable. Please verify DATABASE_URL and try again." },
@@ -52,14 +59,25 @@ export async function POST(req: Request) {
       );
     }
 
+    const prismaCode = extractPrismaCode(error);
+    if (prismaCode === "P2021") {
+      return NextResponse.json(
+        { error: "Database tables are missing. Run: npm run prisma:migrate" },
+        { status: 500 }
+      );
+    }
+    if (prismaCode === "P2002") {
+      return NextResponse.json({ error: "User already exists." }, { status: 409 });
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2021") {
+      if (prismaCode === "P2021") {
         return NextResponse.json(
           { error: "Database tables are missing. Run: npm run prisma:migrate" },
           { status: 500 }
         );
       }
-      if (error.code === "P2002") {
+      if (prismaCode === "P2002") {
         return NextResponse.json({ error: "User already exists." }, { status: 409 });
       }
     }
