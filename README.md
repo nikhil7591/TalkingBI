@@ -54,7 +54,7 @@ You type your KPI  →  SQL Agent fetches data from your database
 
 ## 🏗️ System Architecture
 
-![System Architecture](docs/images/system-architecture.png)
+![System Architecture](docs/images/system_architecture.png)
 ---
 
 ## 🔁 4-Agent Pipeline
