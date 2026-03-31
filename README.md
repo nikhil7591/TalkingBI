@@ -37,7 +37,7 @@ You type your KPI  →  SQL Agent fetches data from your database
 
 ## ✨ Key Features
 
-| Feature | Description |
+| Feature | Description | 
 |---|---|
 | 🤖 **4 AI Agents** | SQL Agent · DeepPrep · Doc2Chart · InsightEval — each with own persona |
 | 📊 **24 Chart Types** | Line · Bar · Donut · Treemap · Heatmap · Sankey · Sunburst · Gauge · Radar + more |
