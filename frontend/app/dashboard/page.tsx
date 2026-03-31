@@ -110,7 +110,13 @@ export default function DashboardPage() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [datasetSessionId, setDatasetSessionId] = useState<string | null>(null);
   const [useUrlDataset, setUseUrlDataset] = useState(false);
-  const [creditInfo, setCreditInfo] = useState<{ remaining: number; limit: number } | null>(null);
+  const [creditInfo, setCreditInfo] = useState<{
+    remaining: number;
+    limit: number;
+    plan?: string;
+    activeSubscriptionName?: string;
+  } | null>(null);
+  const [localSubscriptionName, setLocalSubscriptionName] = useState("Starter");
   const [selectedDashboardForChat, setSelectedDashboardForChat] = useState<string | null>(null);
   const [showPremiumPopup, setShowPremiumPopup] = useState(false);
   const dashboardCacheKey = useMemo(
@@ -204,6 +210,11 @@ export default function DashboardPage() {
     );
   }, [enrichedDashboardsForAdmin, selectedDashboardForChat]);
 
+  const planKey = (creditInfo?.plan || "").toLowerCase();
+  const hasPremiumAccess = isAdmin || planKey === "pro" || planKey === "enterprise";
+  const activeSubscriptionName =
+    creditInfo?.activeSubscriptionName || (isAdmin ? "Admin Enterprise" : localSubscriptionName || "Starter");
+
   const dashboardScopedSuggestions = useMemo(() => {
     if (!selectedDashboard) {
       return [] as string[];
@@ -223,6 +234,18 @@ export default function DashboardPage() {
   }, [selectedDashboard]);
 
   useEffect(() => {
+    const localSubscriptionRaw = localStorage.getItem("talkingbi_active_subscription");
+    if (localSubscriptionRaw) {
+      try {
+        const parsed = JSON.parse(localSubscriptionRaw) as { activeSubscriptionName?: string };
+        if (parsed?.activeSubscriptionName) {
+          setLocalSubscriptionName(parsed.activeSubscriptionName);
+        }
+      } catch {
+        // Ignore invalid local subscription cache.
+      }
+    }
+
     const storedIdx = Number(localStorage.getItem("talkingbi_palette_idx") || "0");
     const safeIdx = Number.isFinite(storedIdx) ? Math.max(0, Math.min(PALETTES.length - 1, storedIdx)) : 0;
     setPaletteIdx(safeIdx);
@@ -318,8 +341,21 @@ export default function DashboardPage() {
         if (!response.ok) {
           return;
         }
-        const data = (await response.json()) as { tokensRemaining?: number; dailyLimit?: number };
-        setCreditInfo({ remaining: Number(data.tokensRemaining || 0), limit: Number(data.dailyLimit || 30) });
+        const data = (await response.json()) as {
+          tokensRemaining?: number;
+          dailyLimit?: number;
+          plan?: string;
+          activeSubscriptionName?: string;
+        };
+        setCreditInfo({
+          remaining: Number(data.tokensRemaining || 0),
+          limit: Number(data.dailyLimit || 30),
+          plan: data.plan,
+          activeSubscriptionName: data.activeSubscriptionName,
+        });
+        if (data.activeSubscriptionName) {
+          setLocalSubscriptionName(data.activeSubscriptionName);
+        }
       } catch {
         // Silent fail for non-blocking badge.
       }
@@ -393,8 +429,21 @@ export default function DashboardPage() {
             body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
           });
           if (res.ok) {
-            const c = (await res.json()) as { tokensRemaining?: number; dailyLimit?: number };
-            setCreditInfo({ remaining: Number(c.tokensRemaining || 0), limit: Number(c.dailyLimit || 30) });
+            const c = (await res.json()) as {
+              tokensRemaining?: number;
+              dailyLimit?: number;
+              plan?: string;
+              activeSubscriptionName?: string;
+            };
+            setCreditInfo({
+              remaining: Number(c.tokensRemaining || 0),
+              limit: Number(c.dailyLimit || 30),
+              plan: c.plan,
+              activeSubscriptionName: c.activeSubscriptionName,
+            });
+            if (c.activeSubscriptionName) {
+              setLocalSubscriptionName(c.activeSubscriptionName);
+            }
           }
         } catch {
           // Ignore credit badge refresh failures.
@@ -416,7 +465,7 @@ export default function DashboardPage() {
 
     const selectedId = selectedDashboardForChat || enrichedDashboardsForAdmin[0]?.id;
     const selectedIdx = enrichedDashboardsForAdmin.findIndex((d) => d.id === selectedId);
-    if (!isAdmin && selectedIdx >= 4) {
+    if (!hasPremiumAccess && selectedIdx >= 4) {
       setShowPremiumPopup(true);
       return;
     }
@@ -503,7 +552,10 @@ export default function DashboardPage() {
             </button>
 
             {profileOpen && (
-              <div className={`absolute right-0 mt-2 w-44 rounded-xl border p-2 shadow-xl ${mode === "dark" ? "border-slate-600/70 bg-slate-900/95" : "border-slate-200 bg-white"}`}>
+              <div className={`absolute right-0 mt-2 w-56 rounded-xl border p-2 shadow-xl ${mode === "dark" ? "border-slate-600/70 bg-slate-900/95" : "border-slate-200 bg-white"}`}>
+                <div className={`mb-2 rounded-lg px-3 py-2 text-xs font-semibold ${mode === "dark" ? "bg-slate-800 text-slate-100" : "bg-slate-100 text-slate-700"}`}>
+                  Active Subscription: <span className="font-bold">{activeSubscriptionName}</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => void signOut({ callbackUrl: "/" })}
@@ -516,6 +568,16 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {creditInfo ? (
+        <div className="-mt-2 mb-1 flex justify-start md:-mt-7">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 shadow-sm md:px-3">
+            <span>Credits: {creditInfo.remaining}/{creditInfo.limit}</span>
+            <span className="text-emerald-500">|</span>
+            <CreditsResetTimer />
+          </div>
+        </div>
+      ) : null}
 
       {historyOpen && (
         <div className="fixed inset-0 z-50 bg-black/35" onClick={() => setHistoryOpen(false)}>
@@ -585,7 +647,7 @@ export default function DashboardPage() {
         }`}
       >
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.9fr_1fr]">
-          <KpiInput onSubmit={submitKpi} loading={loading} mode={mode} isAdmin={isAdmin} />
+          <KpiInput onSubmit={submitKpi} loading={loading} mode={mode} isAdmin={hasPremiumAccess} />
           <div
             className={`hidden rounded-2xl border p-4 lg:block ${
               mode === "dark" ? "border-slate-700 bg-slate-900/80" : "border-slate-200 bg-white/80"
@@ -593,6 +655,7 @@ export default function DashboardPage() {
           >
             <div className={`mb-2 text-sm font-semibold ${mode === "dark" ? "text-slate-100" : "text-slate-700"}`}>Quick Dashboard Highlights</div>
             {isAdmin ? <div className="mb-2 text-xs font-semibold text-emerald-700">Admin mode: all paid charts and premium theme slots are unlocked.</div> : null}
+            {!isAdmin && hasPremiumAccess ? <div className="mb-2 text-xs font-semibold text-emerald-700">{activeSubscriptionName} plan active: premium charts and dashboard slots unlocked.</div> : null}
             <DisplayCards />
           </div>
         </div>
@@ -605,7 +668,7 @@ export default function DashboardPage() {
       <section className="mt-6 space-y-4">
         {loading && <LoadingSkeleton />}
 
-        {!loading && dashboards.length > 0 && <DashboardPreviewGallery dashboards={enrichedDashboardsForAdmin} kpi={currentKpi} isAdmin={isAdmin} />}
+        {!loading && dashboards.length > 0 && <DashboardPreviewGallery dashboards={enrichedDashboardsForAdmin} kpi={currentKpi} isAdmin={hasPremiumAccess} />}
       </section>
 
       {!loading && dashboards.length > 0 && (
@@ -620,7 +683,7 @@ export default function DashboardPage() {
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             {enrichedDashboardsForAdmin.map((dash, idx) => {
               const active = selectedDashboardForChat === dash.id;
-              const locked = !isAdmin && idx >= 4;
+              const locked = !hasPremiumAccess && idx >= 4;
               return (
                 <button
                   key={dash.id}
@@ -679,7 +742,7 @@ export default function DashboardPage() {
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
             <h3 className="text-xl font-bold text-slate-900">Premium Dashboard Locked</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Premium dashboard visible hai, preview/chat unlock karne ke liye plan upgrade karein.
+              Premium dashboard visible hai. Unlock karne ke liye Professional ya Enterprise plan activate karein.
             </p>
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
@@ -722,16 +785,6 @@ export default function DashboardPage() {
         ) : null}
       </div>
 
-      {creditInfo ? (
-        <div className="fixed left-4 top-3 z-50 md:left-8 md:top-4 flex flex-col gap-1.5">
-          <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 shadow-lg">
-            <span>Credits: {creditInfo.remaining}/{creditInfo.limit}</span>
-          </div>
-          <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 shadow-lg">
-            <CreditsResetTimer />
-          </div>
-        </div>
-      ) : null}
     </main>
   );
 }

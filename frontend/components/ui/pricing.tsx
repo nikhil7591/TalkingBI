@@ -29,6 +29,7 @@ interface PricingProps {
   currencyCode?: string;
   annualDiscountLabel?: string;
   darkMode?: boolean;
+  onSelectPlan?: (plan: PricingPlan, billingCycle: "monthly" | "annual") => void;
 }
 
 export function Pricing({
@@ -38,6 +39,7 @@ export function Pricing({
   currencyCode = "USD",
   annualDiscountLabel = "Save 20%",
   darkMode = false,
+  onSelectPlan,
 }: PricingProps) {
   const [isMonthly, setIsMonthly] = useState(true);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -206,18 +208,34 @@ export function Pricing({
 
               <hr className={cn("my-4 w-full", plan.isPopular ? "border-blue-300/40" : darkMode ? "border-slate-700" : "border-slate-200")} />
 
-              <Link
-                href={plan.href}
-                className={cn(
-                  buttonVariants({ variant: "outline" }),
-                  "group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter transform-gpu transition-all duration-300 ease-out",
-                  plan.isPopular
-                    ? "border-white bg-white text-blue-700 hover:bg-blue-50"
-                    : "ring-offset-current hover:bg-blue-600 hover:text-white hover:ring-2 hover:ring-blue-500 hover:ring-offset-1"
-                )}
-              >
-                {plan.buttonText}
-              </Link>
+              {onSelectPlan && !/^https?:\/\//i.test(plan.href) ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectPlan(plan, isMonthly ? "monthly" : "annual")}
+                  className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    "group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter transform-gpu transition-all duration-300 ease-out",
+                    plan.isPopular
+                      ? "border-white bg-white text-blue-700 hover:bg-blue-50"
+                      : "ring-offset-current hover:bg-blue-600 hover:text-white hover:ring-2 hover:ring-blue-500 hover:ring-offset-1"
+                  )}
+                >
+                  {plan.buttonText}
+                </button>
+              ) : (
+                <Link
+                  href={plan.href}
+                  className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    "group relative w-full gap-2 overflow-hidden text-lg font-semibold tracking-tighter transform-gpu transition-all duration-300 ease-out",
+                    plan.isPopular
+                      ? "border-white bg-white text-blue-700 hover:bg-blue-50"
+                      : "ring-offset-current hover:bg-blue-600 hover:text-white hover:ring-2 hover:ring-blue-500 hover:ring-offset-1"
+                  )}
+                >
+                  {plan.buttonText}
+                </Link>
+              )}
               <p className={cn("mt-6 text-xs leading-5", plan.isPopular ? "text-blue-100" : darkMode ? "text-slate-300" : "text-slate-500")}>{plan.description}</p>
             </div>
           </motion.div>

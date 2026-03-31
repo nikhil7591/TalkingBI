@@ -462,6 +462,7 @@ async def run_deepprep_agent(payload: DeepPrepRequest) -> dict[str, Any]:
     if df.empty:
         return {
             "cleaned_rows": [],
+            "quality_issues": quality_issues,
             "transformations": prep_plan.get("transformations_applied", []),
             "row_count": 0,
         }
@@ -514,6 +515,7 @@ async def run_deepprep_agent(payload: DeepPrepRequest) -> dict[str, Any]:
     console.print(Panel("[green]DEEPPREP AGENT COMPLETE[/green]", border_style="green"))
     return {
         "cleaned_rows": cleaned_rows,
+        "quality_issues": quality_issues,
         "transformations": transformations,
         "row_count": len(cleaned_rows),
     }
