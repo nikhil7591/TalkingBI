@@ -37,7 +37,7 @@ You type your KPI  →  SQL Agent fetches data from your database
 
 ## ✨ Key Features
 
-| Feature | Description |
+| Feature | Description | 
 |---|---|
 | 🤖 **4 AI Agents** | SQL Agent · DeepPrep · Doc2Chart · InsightEval — each with own persona |
 | 📊 **24 Chart Types** | Line · Bar · Donut · Treemap · Heatmap · Sankey · Sunburst · Gauge · Radar + more |
@@ -292,6 +292,7 @@ NEXT_PUBLIC_FASTAPI_URL=http://localhost:8000
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/nikhil-kumar-2974292a9/)
 
 📧 madhavkalra2005@gmail.com
+
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/madhav-kalra/)
 
 *"Built to explore how autonomous AI agents can transform raw business data into executive-grade intelligence — without manual dashboarding."*

@@ -10,6 +10,17 @@ const DAILY_LIMIT_BY_PLAN: Record<string, number> = {
   admin: 9_999_999,
 };
 
+const PLAN_DISPLAY_NAME: Record<string, string> = {
+  free: "Starter",
+  pro: "Professional",
+  enterprise: "Enterprise",
+  admin: "Admin Enterprise",
+};
+
+function toPlanDisplayName(plan: string): string {
+  return PLAN_DISPLAY_NAME[plan] || "Starter";
+}
+
 function startOfUtcDay(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
@@ -87,6 +98,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
           userId,
           plan: isAdmin ? "admin" : "free",
+          activeSubscriptionName: toPlanDisplayName(isAdmin ? "admin" : "free"),
           dailyLimit,
           tokensUsed: 0,
           tokensRemaining: dailyLimit,
@@ -102,6 +114,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         userId,
         plan: isAdmin ? "admin" : "free",
+        activeSubscriptionName: toPlanDisplayName(isAdmin ? "admin" : "free"),
         dailyLimit,
         tokensUsed: 0,
         tokensRemaining: dailyLimit,
@@ -132,6 +145,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       userId: user.id,
       plan: isAdmin ? "admin" : plan,
+      activeSubscriptionName: toPlanDisplayName(isAdmin ? "admin" : plan),
       dailyLimit,
       tokensUsed: used,
       tokensRemaining,
@@ -142,6 +156,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       userId: requestUserId,
       plan: requestUserEmail === "admin@gmail.com" ? "admin" : "free",
+      activeSubscriptionName: toPlanDisplayName(requestUserEmail === "admin@gmail.com" ? "admin" : "free"),
       dailyLimit,
       tokensUsed: 0,
       tokensRemaining: dailyLimit,

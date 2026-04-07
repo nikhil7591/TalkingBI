@@ -45,7 +45,7 @@ export default function CreditsResetTimer() {
   }, []);
 
   return (
-    <span className="text-xs font-mono text-emerald-600">
+    <span className="inline-flex items-center text-xs font-mono font-semibold text-emerald-700">
       Reset: {timeLeft}
     </span>
   );

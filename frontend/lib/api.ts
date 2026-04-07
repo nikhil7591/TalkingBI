@@ -14,6 +14,8 @@ export type CreditStatusPayload = {
   tokensUsed?: number;
   allowed?: boolean;
   warning?: string;
+  plan?: string;
+  activeSubscriptionName?: string;
 };
 
 function normalizeThemeKey(themeInput: string | undefined): string {
@@ -53,6 +55,11 @@ export async function getCreditsStatus(payload: {
     dailyLimit: Number(response.data?.dailyLimit || 30),
     tokensUsed: Number(response.data?.tokensUsed || 0),
     warning: response.data?.warning,
+    plan: typeof response.data?.plan === "string" ? response.data.plan : undefined,
+    activeSubscriptionName:
+      typeof response.data?.activeSubscriptionName === "string"
+        ? response.data.activeSubscriptionName
+        : undefined,
   };
 }
 
@@ -155,6 +162,25 @@ export async function ingestDataset(payload: {
   columns: Array<{ name: string; dtype: string }>;
   row_count: number;
   sample_rows: Array<Record<string, unknown>>;
+  overview?: {
+    source_type?: string;
+    cloud_provider?: string;
+    database_engine?: string | null;
+    row_count?: number;
+    column_count?: number;
+    numeric_columns?: string[];
+    categorical_columns?: string[];
+    date_columns?: string[];
+    missing_cells?: number;
+    duplicate_rows?: number;
+    top_missing_columns?: Array<{ column: string; missing: number }>;
+  };
+  deepprep?: {
+    quality_issues?: string[];
+    transformations?: string[];
+    cleaned_row_count?: number;
+    cleaned_sample_rows?: Array<Record<string, unknown>>;
+  };
   message: string;
 }> {
   try {

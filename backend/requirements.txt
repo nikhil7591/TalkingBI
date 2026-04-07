@@ -14,3 +14,5 @@ psycopg2-binary
 rich
 bcrypt
 pymongo
+neo4j
+pymysql
