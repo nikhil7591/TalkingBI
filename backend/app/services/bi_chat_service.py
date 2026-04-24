@@ -7,15 +7,14 @@ from typing import Any
 from mem0 import Memory  # pyright: ignore[reportMissingImports]
 from openai import OpenAI
 
-mem0_client = Memory()
-
-
 class BiChatService:
     """Context-aware BI chatbot restricted to dashboard/KPI context."""
 
     def __init__(self) -> None:
         self.openai_model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini-2026-03-17")
         self.client: OpenAI | None = None
+        self.mem0_client: Memory | None = None
+        self.mem0_init_attempted = False
 
     def _get_client(self) -> OpenAI | None:
         if self.client is not None:
@@ -27,6 +26,19 @@ class BiChatService:
 
         self.client = OpenAI(api_key=openai_key)
         return self.client
+
+    def _get_mem0_client(self) -> Memory | None:
+        if self.mem0_client is not None:
+            return self.mem0_client
+        if self.mem0_init_attempted:
+            return None
+
+        self.mem0_init_attempted = True
+        try:
+            self.mem0_client = Memory()
+        except Exception:
+            self.mem0_client = None
+        return self.mem0_client
 
     def _trim_chart_data(self, charts: list[dict[str, Any]], max_rows_per_chart: int = 10) -> list[dict[str, Any]]:
         compact: list[dict[str, Any]] = []
@@ -45,6 +57,85 @@ class BiChatService:
                 }
             )
         return compact
+
+    @staticmethod
+    def _fallback_answer(kpi: str, dashboard_title: str, kpi_cards: list[dict[str, Any]], charts: list[dict[str, Any]]) -> str:
+        card_parts: list[str] = []
+        for card in kpi_cards[:3]:
+            if not isinstance(card, dict):
+                continue
+            label = str(card.get("label") or "KPI")
+            value = str(card.get("formattedValue") or card.get("value") or "N/A")
+            card_parts.append(f"{label}: {value}")
+
+        chart_titles = [str(c.get("title") or "") for c in charts[:3] if isinstance(c, dict)]
+        chart_titles = [t for t in chart_titles if t]
+
+        summary = (
+            f"Quick summary for {kpi} on {dashboard_title}: "
+            + (" | ".join(card_parts) if card_parts else "KPI cards are available but values are limited.")
+        )
+        if chart_titles:
+            summary += f". Key charts: {', '.join(chart_titles)}."
+        summary += " Ask a focused question like 'top segment by revenue' or 'month-over-month drop reason' for deeper analysis."
+        return summary
+
+    @staticmethod
+    def _is_dashboard_summary_request(question: str) -> bool:
+        q = question.lower().strip()
+        summary_markers = [
+            "explain",
+            "summarize",
+            "summary",
+            "overview",
+            "about this dashboard",
+            "about the dashboard",
+            "what is this dashboard",
+            "tell me about",
+            "walk me through",
+        ]
+        return any(marker in q for marker in summary_markers)
+
+    def _dashboard_summary_response(
+        self,
+        question: str,
+        kpi: str,
+        dashboard_title: str,
+        insight: str,
+        kpi_cards: list[dict[str, Any]],
+        charts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        card_lines: list[str] = []
+        for card in kpi_cards[:4]:
+            if not isinstance(card, dict):
+                continue
+            label = str(card.get("label") or "KPI")
+            value = str(card.get("formattedValue") or card.get("value") or "N/A")
+            card_lines.append(f"- {label}: {value}")
+
+        chart_lines: list[str] = []
+        for chart in charts[:4]:
+            if not isinstance(chart, dict):
+                continue
+            title = str(chart.get("title") or "Chart")
+            chart_type = str(chart.get("type") or "chart")
+            chart_lines.append(f"- {title} ({chart_type})")
+
+        answer_parts = [
+            f"**{dashboard_title}** is a {kpi} dashboard focused on business performance.",
+        ]
+        if insight:
+            answer_parts.append(f"**Insight:** {insight}")
+        if card_lines:
+            answer_parts.append("**Key KPIs:**\n" + "\n".join(card_lines))
+        if chart_lines:
+            answer_parts.append("**Main charts:**\n" + "\n".join(chart_lines))
+        answer_parts.append("If you want, I can also break this into trends, risks, and next actions.")
+
+        return {
+            "answer": "\n\n".join(answer_parts),
+            "sources": ["kpiCards", "charts", "insightText"],
+        }
 
     @staticmethod
     def _is_off_topic(question: str) -> bool:
@@ -84,6 +175,7 @@ class BiChatService:
         dashboard_spec: dict[str, Any],
         user_name: str | None = None,
         user_id: str | None = None,
+        attachments: list[str] | None = None,
     ) -> dict[str, Any]:
         if not question.strip():
             return {"answer": "Please ask a specific KPI question.", "sources": []}
@@ -100,6 +192,16 @@ class BiChatService:
         kpi_cards = dashboard_spec.get("kpiCards") or []
         charts = dashboard_spec.get("charts") or []
 
+        if self._is_dashboard_summary_request(question):
+            return self._dashboard_summary_response(
+                question=question,
+                kpi=kpi,
+                dashboard_title=title,
+                insight=insight,
+                kpi_cards=kpi_cards,
+                charts=charts,
+            )
+
         compact_context = {
             "title": title,
             "focus": focus,
@@ -108,6 +210,8 @@ class BiChatService:
             "kpiCards": kpi_cards[:6],
             "charts": self._trim_chart_data(charts),
         }
+
+        image_attachments = [a for a in (attachments or []) if isinstance(a, str) and a.startswith("data:image/")]
 
         client = self._get_client()
         if not client:
@@ -127,13 +231,17 @@ class BiChatService:
         resolved_user_id = (user_id or "anonymous-user").strip() or "anonymous-user"
         user_message = question.strip()
 
-        try:
-            memories = mem0_client.search(
-                query=user_message,
-                user_id=resolved_user_id,
-                limit=5,
-            )
-        except Exception:
+        mem0_client = self._get_mem0_client()
+        if mem0_client is not None:
+            try:
+                memories = mem0_client.search(
+                    query=user_message,
+                    user_id=resolved_user_id,
+                    limit=5,
+                )
+            except Exception:
+                memories = []
+        else:
             memories = []
 
         memory_context = "\n".join([m.get("memory", "") for m in memories if isinstance(m, dict) and m.get("memory")])
@@ -167,15 +275,20 @@ Context JSON:
 {json.dumps(compact_context, ensure_ascii=True)}
 """
 
+        user_content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+        for image_data_url in image_attachments[:2]:
+            user_content.append({"type": "image_url", "image_url": {"url": image_data_url}})
+
         try:
             response = client.chat.completions.create(
                 model=self.openai_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": user_content if image_attachments else prompt},
                 ],
                 temperature=0.2,
-                max_completion_tokens=260,
+                max_completion_tokens=220,
+                timeout=18,
             )
             message = ""
             if response.choices and response.choices[0].message.content:
@@ -184,16 +297,17 @@ Context JSON:
             if not message:
                 message = "I could not generate an answer from the provided dashboard context."
 
-            try:
-                mem0_client.add(
-                    messages=[
-                        {"role": "user", "content": user_message},
-                        {"role": "assistant", "content": message},
-                    ],
-                    user_id=resolved_user_id,
-                )
-            except Exception:
-                pass
+            if mem0_client is not None:
+                try:
+                    mem0_client.add(
+                        messages=[
+                            {"role": "user", "content": user_message},
+                            {"role": "assistant", "content": message},
+                        ],
+                        user_id=resolved_user_id,
+                    )
+                except Exception:
+                    pass
 
             return {
                 "answer": message,
@@ -201,7 +315,7 @@ Context JSON:
             }
         except Exception as exc:
             return {
-                "answer": f"I hit an error while analyzing this dashboard context: {exc}",
+                "answer": self._fallback_answer(kpi=kpi, dashboard_title=title, kpi_cards=kpi_cards, charts=charts),
                 "sources": ["kpiCards", "charts", "insightText"],
             }
 

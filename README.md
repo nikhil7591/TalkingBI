@@ -189,7 +189,7 @@ cd talking-bi
 cd backend
 pip install -r requirements.txt
 cp .env.example .env     # fill in your keys
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 3. Frontend

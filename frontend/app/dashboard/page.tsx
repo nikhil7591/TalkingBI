@@ -1,21 +1,42 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Home, History, LayoutDashboard, LogIn, MessageSquarePlus, RotateCcw, Sun, Moon, UserPlus, Crown } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
 import DatasetUrlInput from "@/components/DatasetUrlInput";
-import DashboardPreviewGallery from "@/components/DashboardPreviewGallery";
 import KpiInput from "@/components/KpiInput";
-import CreditsResetTimer from "@/components/CreditsResetTimer";
 import { NavBar } from "@/components/ui/tubelight-navbar";
-import { ContainerScroll } from "@/components/ui/container-scroll-animation";
-import DisplayCards from "@/components/ui/display-cards";
-import UniqueLoading from "@/components/ui/morph-loading";
 import { generateDashboards, listConversations } from "@/lib/api";
 import { ChatConversationSummary, DashboardSpec } from "@/lib/types";
+
+const DashboardPreviewGallery = dynamic(() => import("@/components/DashboardPreviewGallery"), {
+  ssr: false,
+  loading: () => <LoadingSkeleton />,
+});
+
+const CreditsResetTimer = dynamic(() => import("@/components/CreditsResetTimer"), {
+  ssr: false,
+  loading: () => <span>--:--</span>,
+});
+
+const ContainerScroll = dynamic(() => import("@/components/ui/container-scroll-animation").then((mod) => mod.ContainerScroll), {
+  ssr: false,
+  loading: () => <div className="h-[420px] rounded-2xl bg-slate-200/60" />,
+});
+
+const DisplayCards = dynamic(() => import("@/components/ui/display-cards"), {
+  ssr: false,
+  loading: () => <div className="h-40 rounded-2xl bg-slate-200/60" />,
+});
+
+const UniqueLoading = dynamic(() => import("@/components/ui/morph-loading"), {
+  ssr: false,
+  loading: () => <div className="h-10 w-10 rounded-full bg-slate-500/40" />,
+});
 
 const DASHBOARD_NAMES = [
   "Trend Analysis & Performance",
@@ -399,10 +420,10 @@ export default function DashboardPage() {
     setLoading(true);
     setGenerationStep(0);
     setError("");
-    const minDelay = new Promise((resolve) => setTimeout(resolve, 5000));
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 1200));
     const stepInterval = setInterval(() => {
       setGenerationStep((prev) => (prev < 3 ? prev + 1 : prev));
-    }, 1200);
+    }, 800);
 
     try {
       const [data] = await Promise.all([

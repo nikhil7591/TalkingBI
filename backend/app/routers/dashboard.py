@@ -72,6 +72,7 @@ class BiChatRequest(BaseModel):
     dashboardSpec: dict[str, Any] = Field(...)
     userName: str | None = Field(default=None)
     userId: str | None = Field(default=None)
+    attachments: list[str] = Field(default_factory=list)
 
 @router.get("/health")
 def health() -> dict[str, str]:
@@ -186,4 +187,5 @@ def bi_chat(payload: BiChatRequest) -> dict[str, Any]:
         dashboard_spec=payload.dashboardSpec,
         user_name=payload.userName,
         user_id=payload.userId,
+        attachments=payload.attachments,
     )

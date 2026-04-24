@@ -256,12 +256,13 @@ export async function generateVoiceExplanation(
 export async function askBiChat(payload: {
   question: string;
   kpi: string;
-  dashboardSpec: DashboardSpec;
+  dashboardSpec: Record<string, unknown>;
   userName?: string;
   userId?: string;
+  attachments?: string[];
 }): Promise<{ answer: string; sources: string[] }> {
   try {
-    const response = await axios.post(`${API_URL}/bi-chat`, payload, { timeout: 30000 });
+    const response = await axios.post(`${API_URL}/bi-chat`, payload, { timeout: 45000 });
     return {
       answer: response.data?.answer || "",
       sources: response.data?.sources || [],

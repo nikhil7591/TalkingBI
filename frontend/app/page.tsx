@@ -1,22 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 import { RainbowButton } from "@/components/ui/rainbow-button";
-import { Card } from "@/components/ui/card";
-import { SplineScene } from "@/components/ui/splite";
 import { Spotlight } from "@/components/ui/spotlight";
+
+const SplineScene = dynamic(() => import("@/components/ui/splite").then((mod) => mod.SplineScene), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center rounded-[32px] bg-slate-100/80">
+      <span className="h-10 w-10 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+    </div>
+  ),
+});
 
 export default function HomePage() {
   const [mode, setMode] = useState<"light" | "dark">("light");
+  const [showSpline, setShowSpline] = useState(false);
 
   useEffect(() => {
     const storedMode = localStorage.getItem("talkingbi_mode");
     if (storedMode === "dark" || storedMode === "light") {
       setMode(storedMode);
     }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowSpline(true), 700);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const isDark = mode === "dark";
@@ -70,10 +84,7 @@ export default function HomePage() {
           <div className={`relative h-full w-full overflow-hidden rounded-[32px] ${isDark ? "bg-slate-950" : "bg-white"}`}>
             <Spotlight className="z-10" size={420} />
             <div className="relative z-20 h-full w-full">
-              <SplineScene
-                scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-                className="h-full w-full"
-              />
+              {showSpline ? <SplineScene scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode" className="h-full w-full" /> : null}
             </div>
           </div>
         </motion.div>

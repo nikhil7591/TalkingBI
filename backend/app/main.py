@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -13,7 +15,14 @@ from app.routers.dashboard import router as dashboard_router
 from app.routers.dataset import router as dataset_router
 from app.services.data_service import data_service
 
-app = FastAPI(title="Talking BI Dashboard Generator", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    data_service.scan_datasets()
+    yield
+
+
+app = FastAPI(title="Talking BI Dashboard Generator", version="1.0.0", lifespan=lifespan)
 
 default_allowed_origins = "http://localhost:3000,http://127.0.0.1:3000"
 allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", default_allowed_origins)
@@ -37,7 +46,3 @@ app.include_router(dataset_router)
 @app.get("/ping")
 async def ping():
     return {"status": "alive"}
-
-@app.on_event("startup")
-def startup_event() -> None:
-    data_service.scan_datasets()

@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 
 import BIChatbot from "@/components/BIChatbot";
-import DashboardRenderer from "@/components/DashboardRenderer";
 import { getCreditsStatus } from "@/lib/api";
 import { DashboardSpec } from "@/lib/types";
+
+const DashboardRenderer = dynamic(() => import("@/components/DashboardRenderer"), {
+  ssr: false,
+  loading: () => <div className="h-[420px] rounded-2xl bg-slate-200/60" />,
+});
 
 type ChatFlowState = {
   dashboards: DashboardSpec[];
@@ -30,7 +35,7 @@ export default function DashboardChatPage() {
   const [flowState, setFlowState] = useState<ChatFlowState | null>(null);
   const [selectedIdFromQuery, setSelectedIdFromQuery] = useState<string | undefined>(undefined);
   const [creditInfo, setCreditInfo] = useState<{ remaining: number; limit: number } | null>(null);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -184,6 +189,7 @@ export default function DashboardChatPage() {
         suggestions={relatedQueries}
         userId={session?.user?.id || undefined}
         userEmail={session?.user?.email || undefined}
+        userName={session?.user?.name || session?.user?.email || "You"}
         onCreditsUpdate={(credits) => setCreditInfo(credits)}
       />
     </main>
