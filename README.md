@@ -284,7 +284,7 @@ NEXT_PUBLIC_FASTAPI_URL=http://localhost:8000
 
 <div align="center">
 
-**Nikhil Kumar and Madhav Kalra **  
+**Nikhil Kumar and Madhav Kalra**  
 
 
 📧 nikhil759100@gmail.com
